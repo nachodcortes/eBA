@@ -1,2 +1,2 @@
 # eBA
-Proyecto para Seminario De Integracion Profesional
+Proyecto para la materia Seminario De Integracion Profesional
