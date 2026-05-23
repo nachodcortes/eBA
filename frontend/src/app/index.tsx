@@ -1,4 +1,13 @@
-import { View, Text, StyleSheet, Image, TextInput, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TextInput,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { router } from "expo-router";
 import { Search, Home, Heart, User, MapPin } from "lucide-react-native";
 
 const featuredEvents = [
@@ -6,13 +15,15 @@ const featuredEvents = [
     id: 1,
     title: "Lollapalooza 2026",
     interested: "355 interesados",
-    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800",
+    image:
+      "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800",
   },
   {
     id: 2,
     title: "FUTTURA",
     interested: "120 interesados",
-    image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=800",
+    image:
+      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=800",
   },
 ];
 
@@ -21,23 +32,34 @@ const recommendedEvents = [
     id: 3,
     title: "Rosedal Fest",
     date: "Sáb 22 mar · Palermo",
-    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800",
+    image:
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800",
   },
   {
     id: 4,
     title: "After Office",
     date: "Vie 28 mar · Recoleta",
-    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800",
+    image:
+      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800",
   },
 ];
 
 export default function HomeScreen() {
+  const goToEventDetail = (eventId: number) => {
+    console.log("Evento tocado:", eventId);
+    router.push(`/event-detail/${eventId}` as any);
+  };
+
   return (
     <View style={styles.screen}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.container}
+      >
         <Image
           source={{ uri: "https://i.imgur.com/Oi6Zc3K.png" }}
           style={styles.logo}
+          resizeMode="contain"
         />
 
         <Text style={styles.title}>¿Qué te pinta hoy?</Text>
@@ -51,17 +73,29 @@ export default function HomeScreen() {
           />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
-          {["Música", "Salidas", "Networking", "Cultura", "Gastronomía"].map((item, index) => (
-            <TouchableOpacity
-              key={item}
-              style={[styles.category, index === 0 && styles.categoryActive]}
-            >
-              <Text style={[styles.categoryText, index === 0 && styles.categoryTextActive]}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categories}
+        >
+          {["Música", "Salidas", "Networking", "Cultura", "Gastronomía"].map(
+            (item, index) => (
+              <TouchableOpacity
+                key={item}
+                style={[styles.category, index === 0 && styles.categoryActive]}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.categoryText,
+                    index === 0 && styles.categoryTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
         </ScrollView>
 
         <View style={styles.sectionHeader}>
@@ -71,10 +105,20 @@ export default function HomeScreen() {
 
         <View style={styles.featuredGrid}>
           {featuredEvents.map((event) => (
-            <TouchableOpacity key={event.id} style={styles.featuredCard}>
-              <Image source={{ uri: event.image }} style={styles.featuredImage} />
-              <View style={styles.overlay} />
-              <View style={styles.cardText}>
+            <TouchableOpacity
+              key={event.id}
+              style={styles.featuredCard}
+              activeOpacity={0.85}
+              onPress={() => goToEventDetail(event.id)}
+            >
+              <Image
+                source={{ uri: event.image }}
+                style={styles.featuredImage}
+              />
+
+              <View pointerEvents="none" style={styles.overlay} />
+
+              <View pointerEvents="none" style={styles.cardText}>
                 <Text style={styles.eventTitle}>{event.title}</Text>
                 <Text style={styles.eventInfo}>↗ {event.interested}</Text>
               </View>
@@ -89,10 +133,20 @@ export default function HomeScreen() {
 
         <View style={styles.recommendedList}>
           {recommendedEvents.map((event) => (
-            <TouchableOpacity key={event.id} style={styles.recommendedCard}>
-              <Image source={{ uri: event.image }} style={styles.recommendedImage} />
-              <View>
+            <TouchableOpacity
+              key={event.id}
+              style={styles.recommendedCard}
+              activeOpacity={0.85}
+              onPress={() => goToEventDetail(event.id)}
+            >
+              <Image
+                source={{ uri: event.image }}
+                style={styles.recommendedImage}
+              />
+
+              <View pointerEvents="none" style={styles.recommendedContent}>
                 <Text style={styles.recommendedTitle}>{event.title}</Text>
+
                 <View style={styles.locationRow}>
                   <MapPin size={13} color="#8B35E8" />
                   <Text style={styles.recommendedDate}>{event.date}</Text>
@@ -126,7 +180,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 76,
     height: 46,
-    resizeMode: "contain",
     marginBottom: 22,
   },
   title: {
@@ -151,6 +204,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     flex: 1,
     color: "#333",
+    outlineStyle: "none" as any,
   },
   categories: {
     marginBottom: 34,
@@ -191,7 +245,6 @@ const styles = StyleSheet.create({
   },
   featuredGrid: {
     flexDirection: "row",
-    gap: 18,
     marginBottom: 34,
   },
   featuredCard: {
@@ -200,19 +253,20 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: "hidden",
     backgroundColor: "#fff",
+    marginRight: 14,
   },
   featuredImage: {
     width: "100%",
     height: "100%",
   },
   overlay: {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: "rgba(0,0,0,0.22)",
-},
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.22)",
+  },
   cardText: {
     position: "absolute",
     left: 14,
@@ -229,7 +283,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   recommendedList: {
-    gap: 16,
+    marginBottom: 20,
   },
   recommendedCard: {
     height: 88,
@@ -240,12 +294,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
+    marginBottom: 16,
   },
   recommendedImage: {
     width: 116,
     height: 68,
     borderRadius: 15,
     marginRight: 16,
+  },
+  recommendedContent: {
+    flex: 1,
   },
   recommendedTitle: {
     fontSize: 16,
@@ -273,9 +331,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 25,
-    shadowOffset: { width: 0, height: 8 },
+    boxShadow: "0px 8px 25px rgba(0,0,0,0.08)" as any,
   },
 });
