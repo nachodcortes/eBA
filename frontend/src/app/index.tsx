@@ -45,11 +45,14 @@ const recommendedEvents = [
 ];
 
 export default function HomeScreen() {
-  const goToEventDetail = (eventId: number) => {
-    console.log("Evento tocado:", eventId);
-    router.push(`/event-detail/${eventId}` as any);
-  };
-
+  const goToEventDetail = (event: any) => {
+  router.push({
+    pathname: `/event-detail/${event.id}` as any,
+    params: {
+      event: JSON.stringify(event),
+    },
+  });
+};
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -109,7 +112,7 @@ export default function HomeScreen() {
               key={event.id}
               style={styles.featuredCard}
               activeOpacity={0.85}
-              onPress={() => goToEventDetail(event.id)}
+              onPress={() => goToEventDetail(event)}
             >
               <Image
                 source={{ uri: event.image }}
@@ -137,7 +140,7 @@ export default function HomeScreen() {
               key={event.id}
               style={styles.recommendedCard}
               activeOpacity={0.85}
-              onPress={() => goToEventDetail(event.id)}
+              onPress={() => goToEventDetail(event)}
             >
               <Image
                 source={{ uri: event.image }}
