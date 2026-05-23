@@ -34,3 +34,4 @@ ios/
 # Logs
 logs/
 *.log
+backend/serviceAccountKey.json
