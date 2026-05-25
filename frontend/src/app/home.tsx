@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { router } from "expo-router";
-import { Search, Home, Heart, User, MapPin } from "lucide-react-native";
+import BottomNav from "../components/BottomNav";
+import { Search, MapPin } from "lucide-react-native";
 
 const featuredEvents = [
   {
@@ -160,13 +161,9 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.navbar}>
-        <Home size={22} color="#7B2DF0" fill="#7B2DF0" />
-        <Search size={22} color="#B8B8C2" />
-        <Heart size={22} color="#B8B8C2" />
-        <User size={22} color="#B8B8C2" />
-      </View>
+      <BottomNav />
     </View>
+    
   );
 }
 
