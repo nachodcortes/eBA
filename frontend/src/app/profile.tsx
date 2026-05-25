@@ -1,11 +1,22 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import BottomNav from "../components/BottomNav";
+import { router } from "expo-router";
+const cerrarSesion = () => {
+  localStorage.removeItem("usuario");
+  localStorage.removeItem("token");
+  router.replace("/login" as any);
+};
 
 export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.content}>
-        <Text style={styles.title}>Perfil</Text>
+        <Text style={styles.title}>
+          Bienvenida, {JSON.parse(localStorage.getItem("usuario") || "{}").nombre || "Usuario"}!
+        </Text>
+        <TouchableOpacity onPress={cerrarSesion}>
+          <Text style={styles.logout}>Cerrar sesión</Text>
+        </TouchableOpacity>
         <Text style={styles.subtitle}>
           Acá mas pronto vas a poder ver y editar tu información personal, tus intereses y tus eventos guardados.
         </Text>
@@ -36,5 +47,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#8D8A99",
     lineHeight: 22,
+  },
+  logout: {
+    fontSize: 16,
+    color: "#3a1fa6",
+    textDecorationLine: "underline",
   },
 });
