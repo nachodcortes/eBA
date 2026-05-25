@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { EyeOff } from "lucide-react-native";
+import { API_URL } from "../config/api";
 
 export default function RegisterScreen() {
   const params = useLocalSearchParams();
@@ -28,29 +29,20 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [contrasenia, setContrasenia] = useState("");
   const [edad, setEdad] = useState("");
-  const [ciudad, setCiudad] = useState("Buenos Aires");
-  const [pais, setPais] = useState("Argentina");
-  const [bio, setBio] = useState("");
-  const [instagram, setInstagram] = useState("");
-  const [fotoPerfil, setFotoPerfil] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    console.log("TOQUÉ CREAR CUENTA");
-
+  const handleRegister = async () => {
     if (intereses.length === 0) {
-      console.log("No hay intereses");
       alert("Tenés que seleccionar al menos un interés.");
       return;
     }
 
     if (!nombre.trim()) {
-      console.log("Falta nombre");
       alert("Ingresá tu nombre.");
       return;
     }
 
     if (!email.trim()) {
-      console.log("Falta email");
       alert("Ingresá tu email.");
       return;
     }
@@ -58,25 +50,21 @@ export default function RegisterScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email.trim())) {
-      console.log("Email inválido");
       alert("Ingresá un email válido.");
       return;
     }
 
     if (!contrasenia.trim()) {
-      console.log("Falta contraseña");
       alert("Ingresá una contraseña.");
       return;
     }
 
     if (contrasenia.length < 6) {
-      console.log("Contraseña corta");
       alert("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
 
     if (!edad.trim()) {
-      console.log("Falta edad");
       alert("Ingresá tu edad.");
       return;
     }
@@ -84,72 +72,51 @@ export default function RegisterScreen() {
     const edadNumerica = Number(edad);
 
     if (isNaN(edadNumerica) || edadNumerica < 13 || edadNumerica > 100) {
-      console.log("Edad inválida");
       alert("Ingresá una edad válida.");
-      return;
-    }
-
-    if (!ciudad.trim()) {
-      console.log("Falta ciudad");
-      alert("Ingresá tu ciudad.");
-      return;
-    }
-
-    if (!pais.trim()) {
-      console.log("Falta país");
-      alert("Ingresá tu país.");
-      return;
-    }
-
-    if (!bio.trim()) {
-      console.log("Falta bio");
-      alert("Ingresá una breve bio.");
-      return;
-    }
-
-    if (!instagram.trim()) {
-      console.log("Falta Instagram");
-      alert("Ingresá tu Instagram.");
-      return;
-    }
-
-    if (!instagram.trim().startsWith("@")) {
-      console.log("Instagram inválido");
-      alert("El Instagram debe empezar con @.");
       return;
     }
 
     const nuevoUsuario = {
       nombre: nombre.trim(),
       email: email.trim().toLowerCase(),
-      edad: edadNumerica,
-      ubicacionAproximada: {
-        ciudad: ciudad.trim(),
-        pais: pais.trim(),
-      },
-      bio: bio.trim(),
-      instagram: instagram.trim(),
-      fotoPerfil: fotoPerfil.trim() || "https://imageurl.com/profile.jpg",
-      intereses,
       contrasenia,
+      edad: edadNumerica,
+      intereses,
     };
 
-    console.log("Usuario a registrar:", nuevoUsuario);
+    console.log("Enviando usuario:", nuevoUsuario);
+    console.log("URL:", `${API_URL}/api/usuarios/registro`);
 
-    /*
-      Cuando conectemos el backend real:
+    try {
+      setLoading(true);
 
-      fetch("http://localhost:3000/api/usuarios/registro", {
+      const response = await fetch(`${API_URL}/api/usuarios/registro`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(nuevoUsuario),
       });
-    */
 
-    alert("Usuario creado correctamente.");
-    router.replace("/home" as any);
+      const data = await response.json();
+
+      console.log("Respuesta del backend:", data);
+
+      if (!response.ok) {
+        alert(data.message || data.error || "Error al registrar usuario.");
+        return;
+      }
+
+      alert("Usuario creado correctamente.");
+      router.replace("/home" as any);
+    } catch (error) {
+      console.log("Error al conectar con backend:", error);
+      alert(
+        "No se pudo conectar con el servidor. Revisá que el backend esté prendido y que la URL sea correcta."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -168,9 +135,7 @@ export default function RegisterScreen() {
           Registrate <Text style={styles.dark}>a eBA</Text>
         </Text>
 
-        <Text style={styles.subtitle}>
-          Último paso para empezar a conectar.
-        </Text>
+        <Text style={styles.subtitle}>Último paso para empezar a conectar.</Text>
 
         <View style={styles.selectedBox}>
           <Text style={styles.selectedTitle}>Intereses elegidos</Text>
@@ -192,7 +157,7 @@ export default function RegisterScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Nombre</Text>
           <TextInput
-            placeholder="Natalia Favre"
+            placeholder="Sofi"
             placeholderTextColor="#A8A5B3"
             style={styles.input}
             value={nombre}
@@ -203,7 +168,7 @@ export default function RegisterScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Email</Text>
           <TextInput
-            placeholder="natalia@gmail.com"
+            placeholder="sofi2@test.com"
             placeholderTextColor="#A8A5B3"
             style={styles.input}
             value={email}
@@ -218,7 +183,7 @@ export default function RegisterScreen() {
 
           <View style={styles.passwordBox}>
             <TextInput
-              placeholder="Creá una contraseña"
+              placeholder="123456"
               placeholderTextColor="#A8A5B3"
               secureTextEntry
               style={styles.passwordInput}
@@ -241,72 +206,15 @@ export default function RegisterScreen() {
           />
         </View>
 
-        <View style={styles.row}>
-          <View style={[styles.field, styles.halfField]}>
-            <Text style={styles.label}>Ciudad</Text>
-            <TextInput
-              placeholder="Buenos Aires"
-              placeholderTextColor="#A8A5B3"
-              style={styles.input}
-              value={ciudad}
-              onChangeText={setCiudad}
-            />
-          </View>
-
-          <View style={[styles.field, styles.halfFieldLast]}>
-            <Text style={styles.label}>País</Text>
-            <TextInput
-              placeholder="Argentina"
-              placeholderTextColor="#A8A5B3"
-              style={styles.input}
-              value={pais}
-              onChangeText={setPais}
-            />
-          </View>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Bio</Text>
-          <TextInput
-            placeholder="Me gusta salir a recitales y eventos techno"
-            placeholderTextColor="#A8A5B3"
-            style={[styles.input, styles.bioInput]}
-            value={bio}
-            onChangeText={setBio}
-            multiline
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Instagram</Text>
-          <TextInput
-            placeholder="@natifavre"
-            placeholderTextColor="#A8A5B3"
-            style={styles.input}
-            value={instagram}
-            onChangeText={setInstagram}
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Foto de perfil URL</Text>
-          <TextInput
-            placeholder="https://imageurl.com/profile.jpg"
-            placeholderTextColor="#A8A5B3"
-            style={styles.input}
-            value={fotoPerfil}
-            onChangeText={setFotoPerfil}
-            autoCapitalize="none"
-          />
-        </View>
-
         <TouchableOpacity
-          style={styles.primaryButton}
+          style={[styles.primaryButton, loading && styles.disabledButton]}
           activeOpacity={0.85}
           onPress={handleRegister}
+          disabled={loading}
         >
-          <Text style={styles.primaryButtonText}>Crear cuenta</Text>
+          <Text style={styles.primaryButtonText}>
+            {loading ? "Creando cuenta..." : "Crear cuenta"}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.loginRow}>
@@ -420,23 +328,6 @@ const styles = StyleSheet.create({
     color: "#332047",
     outlineStyle: "none" as any,
   },
-  row: {
-    flexDirection: "row",
-    width: "100%",
-  },
-  halfField: {
-    flex: 1,
-    marginRight: 10,
-  },
-  halfFieldLast: {
-    flex: 1,
-    marginRight: 0,
-  },
-  bioInput: {
-    height: 86,
-    paddingTop: 14,
-    textAlignVertical: "top",
-  },
   primaryButton: {
     width: "100%",
     height: 54,
@@ -446,7 +337,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 10,
     marginBottom: 18,
-    zIndex: 20,
+  },
+  disabledButton: {
+    opacity: 0.65,
   },
   primaryButtonText: {
     color: "#FFFFFF",
