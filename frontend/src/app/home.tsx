@@ -61,7 +61,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.container}
       >
         <Image
-          source={{ uri: "https://i.imgur.com/Oi6Zc3K.png" }}
+          source={require("../../assets/images/logoeba.png")}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -178,9 +178,9 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   logo: {
-    width: 76,
-    height: 46,
-    marginBottom: 22,
+    width: 80,
+    height: 80,
+    marginBottom: 5,
   },
   title: {
     fontSize: 30,

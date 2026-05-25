@@ -41,10 +41,10 @@ export default function EventDetail() {
         contentContainerStyle={styles.container}
       >
         <Image
-          source={{ uri: "https://i.imgur.com/Oi6Zc3K.png" }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+                  source={require("../../../assets/images/logoeba.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
 
         <View style={styles.imageWrapper}>
           <Image source={{ uri: eventData.image }} style={styles.heroImage} />
@@ -77,7 +77,7 @@ export default function EventDetail() {
               }}
               style={[styles.avatar, styles.avatarOverlap]}
             />
-            <Image
+            <Image 
               source={{
                 uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200",
               }}
@@ -119,21 +119,6 @@ export default function EventDetail() {
                 </Text>
                 <Text style={styles.infoSubtitle}>
                   {eventData.date || "Fecha a confirmar"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.infoItem}>
-              <View style={styles.iconBox}>
-                <Users size={22} color="#7B2DF0" />
-              </View>
-
-              <View>
-                <Text style={styles.infoTitle}>
-                  {eventData.friends || "2 amigos en común"}
-                </Text>
-                <Text style={styles.infoSubtitle}>
-                  {eventData.friendsDetail || "También quieren asistir"}
                 </Text>
               </View>
             </View>
