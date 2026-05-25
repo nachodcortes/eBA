@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
+const cors = require("cors");
 
 const usuarioRoutes = require("./routes/usuario.routes");
 const eventoRoutes = require("./routes/evento.routes");
@@ -9,6 +10,8 @@ const eventoRoutes = require("./routes/evento.routes");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// MIDDLEWARES
+app.use(cors());
 app.use(express.json());
 
 mongoose
@@ -47,6 +50,7 @@ app.get("/test-mongo", async (req, res) => {
 // RUTAS
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/eventos", eventoRoutes);
+
 // 404 SIEMPRE AL FINAL
 app.use((req, res) => {
   res.status(404).json({
