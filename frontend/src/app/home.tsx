@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,62 +7,124 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
-import BottomNav from "../components/BottomNav";
 import { Search, MapPin } from "lucide-react-native";
-import { useEffect } from "react";
+import { API_URL } from "../config/api";
+import BottomNav from "../components/BottomNav";
 
-const featuredEvents = [
-  {
-    id: 1,
-    title: "Lollapalooza 2026",
-    interested: "355 interesados",
-    image:
-      "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800",
-  },
-  {
-    id: 2,
-    title: "FUTTURA",
-    interested: "120 interesados",
-    image:
-      "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=800",
-  },
-];
+type Ubicacion = {
+  ciudad?: string;
+  barrio?: string;
+  direccion?: string;
+};
 
-const recommendedEvents = [
-  {
-    id: 3,
-    title: "Rosedal Fest",
-    date: "Sáb 22 mar · Palermo",
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800",
-  },
-  {
-    id: 4,
-    title: "After Office",
-    date: "Vie 28 mar · Recoleta",
-    image:
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800",
-  },
-];
+type Evento = {
+  _id: string;
+  nombre: string;
+  descripcion?: string;
+  fecha?: string;
+  ubicacion?: Ubicacion;
+  categoria?: string;
+  imagen?: string;
+  organizador?: string;
+  esPromocionado?: boolean;
+};
 
 export default function HomeScreen() {
-  const goToEventDetail = (event: any) => {
-  router.push({
-    pathname: `/event-detail/${event.id}` as any,
-    params: {
-      event: JSON.stringify(event),
-    },
-  });
-};
-useEffect(() => {
-  const usuarioGuardado = localStorage.getItem("usuario");
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!usuarioGuardado) {
-    router.replace("/login" as any);
+  useEffect(() => {
+    const usuarioGuardado = localStorage.getItem("usuario");
+
+    if (!usuarioGuardado) {
+      router.replace("/login" as any);
+      return;
+    }
+
+    const obtenerEventos = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/eventos`);
+        const data = await response.json();
+
+        console.log("Usuario guardado:", JSON.parse(usuarioGuardado));
+        console.log("Respuesta eventos:", data);
+
+        if (!response.ok) {
+          alert(data.message || data.error || "Error al traer eventos.");
+          return;
+        }
+
+        setEventos(data.eventos || []);
+      } catch (error) {
+        console.log("Error al traer eventos:", error);
+        alert("No se pudo conectar con el servidor.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    obtenerEventos();
+  }, []);
+
+  const irADetalle = (eventoId: string) => {
+    router.push(`/event-detail/${eventoId}` as any);
+  };
+
+  const formatearFecha = (fecha?: string) => {
+    if (!fecha) return "Fecha a confirmar";
+
+    const fechaDate = new Date(fecha);
+
+    if (isNaN(fechaDate.getTime())) {
+      return fecha;
+    }
+
+    return fechaDate.toLocaleDateString("es-AR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const obtenerUbicacion = (ubicacion?: Ubicacion) => {
+    if (!ubicacion) return "Ubicación a confirmar";
+
+    if (ubicacion.barrio && ubicacion.ciudad) {
+      return `${ubicacion.barrio}, ${ubicacion.ciudad}`;
+    }
+
+    if (ubicacion.ciudad) {
+      return ubicacion.ciudad;
+    }
+
+    if (ubicacion.direccion) {
+      return ubicacion.direccion;
+    }
+
+    return "Ubicación a confirmar";
+  };
+
+  const eventosDestacados = eventos.filter((evento) => evento.esPromocionado);
+  const eventosRecomendados = eventos.filter((evento) => !evento.esPromocionado);
+
+  const destacadosParaMostrar =
+    eventosDestacados.length > 0 ? eventosDestacados : eventos.slice(0, 2);
+
+  const recomendadosParaMostrar =
+    eventosRecomendados.length > 0 ? eventosRecomendados : eventos.slice(2);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#7528F0" />
+        <Text style={styles.loadingText}>Cargando eventos...</Text>
+      </View>
+    );
   }
-}, []);
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -78,6 +141,7 @@ useEffect(() => {
 
         <View style={styles.searchBox}>
           <Search size={18} color="#A7A7B0" />
+
           <TextInput
             placeholder="Buscar eventos, personas..."
             placeholderTextColor="#A7A7B0"
@@ -115,63 +179,92 @@ useEffect(() => {
           <Text style={styles.seeAll}>Ver todos</Text>
         </View>
 
-        <View style={styles.featuredGrid}>
-          {featuredEvents.map((event) => (
-            <TouchableOpacity
-              key={event.id}
-              style={styles.featuredCard}
-              activeOpacity={0.85}
-              onPress={() => goToEventDetail(event)}
-            >
-              <Image
-                source={{ uri: event.image }}
-                style={styles.featuredImage}
-              />
+        {eventos.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>No hay eventos cargados</Text>
+            <Text style={styles.emptyText}>
+              Cuando se carguen eventos en la base de datos, van a aparecer acá.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.featuredGrid}>
+              {destacadosParaMostrar.map((evento) => (
+                <TouchableOpacity
+                  key={evento._id}
+                  style={styles.featuredCard}
+                  activeOpacity={0.85}
+                  onPress={() => irADetalle(evento._id)}
+                >
+                  <Image
+                    source={{
+                      uri:
+                        evento.imagen ||
+                        "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800",
+                    }}
+                    style={styles.featuredImage}
+                  />
 
-              <View pointerEvents="none" style={styles.overlay} />
+                  <View pointerEvents="none" style={styles.overlay} />
 
-              <View pointerEvents="none" style={styles.cardText}>
-                <Text style={styles.eventTitle}>{event.title}</Text>
-                <Text style={styles.eventInfo}>↗ {event.interested}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+                  <View pointerEvents="none" style={styles.cardText}>
+                    <Text style={styles.eventTitle} numberOfLines={2}>
+                      {evento.nombre}
+                    </Text>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recomendados</Text>
-          <Text style={styles.seeAll}>Ver todos</Text>
-        </View>
+                    <Text style={styles.eventInfo}>
+                      ↗ {evento.categoria || "Evento"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        <View style={styles.recommendedList}>
-          {recommendedEvents.map((event) => (
-            <TouchableOpacity
-              key={event.id}
-              style={styles.recommendedCard}
-              activeOpacity={0.85}
-              onPress={() => goToEventDetail(event)}
-            >
-              <Image
-                source={{ uri: event.image }}
-                style={styles.recommendedImage}
-              />
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recomendados</Text>
+              <Text style={styles.seeAll}>Ver todos</Text>
+            </View>
 
-              <View pointerEvents="none" style={styles.recommendedContent}>
-                <Text style={styles.recommendedTitle}>{event.title}</Text>
+            <View style={styles.recommendedList}>
+              {recomendadosParaMostrar.map((evento) => (
+                <TouchableOpacity
+                  key={evento._id}
+                  style={styles.recommendedCard}
+                  activeOpacity={0.85}
+                  onPress={() => irADetalle(evento._id)}
+                >
+                  <Image
+                    source={{
+                      uri:
+                        evento.imagen ||
+                        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800",
+                    }}
+                    style={styles.recommendedImage}
+                  />
 
-                <View style={styles.locationRow}>
-                  <MapPin size={13} color="#8B35E8" />
-                  <Text style={styles.recommendedDate}>{event.date}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+                  <View pointerEvents="none" style={styles.recommendedContent}>
+                    <Text style={styles.recommendedTitle} numberOfLines={1}>
+                      {evento.nombre}
+                    </Text>
+
+                    <View style={styles.locationRow}>
+                      <MapPin size={13} color="#8B35E8" />
+
+                      <Text style={styles.recommendedDate} numberOfLines={1}>
+                        {formatearFecha(evento.fecha)} ·{" "}
+                        {obtenerUbicacion(evento.ubicacion)}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <BottomNav />
     </View>
-    
   );
 }
 
@@ -180,15 +273,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F4F6FB",
   },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: "#F4F6FB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: "#6F6D7A",
+    fontWeight: "600",
+  },
   container: {
     paddingTop: 70,
     paddingHorizontal: 28,
     paddingBottom: 120,
   },
   logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 5,
+    width: 76,
+    height: 46,
+    marginBottom: 22,
   },
   title: {
     fontSize: 30,
@@ -278,6 +382,7 @@ const styles = StyleSheet.create({
   cardText: {
     position: "absolute",
     left: 14,
+    right: 14,
     bottom: 14,
   },
   eventTitle: {
@@ -327,18 +432,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#8B8A99",
     marginLeft: 4,
+    flex: 1,
   },
-  navbar: {
-    position: "absolute",
-    bottom: 28,
-    left: 32,
-    right: 32,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    boxShadow: "0px 8px 25px rgba(0,0,0,0.08)" as any,
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#332047",
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#8D8A99",
+    lineHeight: 21,
   },
 });

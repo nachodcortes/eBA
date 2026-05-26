@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -5,6 +6,7 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
@@ -14,13 +16,111 @@ import {
   MapPin,
   Users,
 } from "lucide-react-native";
+import { API_URL } from "../../config/api";
+
+type Ubicacion = {
+  ciudad?: string;
+  barrio?: string;
+  direccion?: string;
+};
+
+type Evento = {
+  _id: string;
+  nombre: string;
+  descripcion?: string;
+  fecha?: string;
+  ubicacion?: Ubicacion;
+  categoria?: string;
+  imagen?: string;
+  organizador?: string;
+  esPromocionado?: boolean;
+};
 
 export default function EventDetail() {
-  const params = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
 
-  const eventData = params.event
-    ? JSON.parse(params.event as string)
-    : null;
+  const [eventData, setEventData] = useState<Evento | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const usuarioGuardado = localStorage.getItem("usuario");
+
+    if (!usuarioGuardado) {
+      router.replace("/login" as any);
+      return;
+    }
+
+    const obtenerEvento = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/eventos/${id}`);
+        const data = await response.json();
+
+        console.log("Detalle evento desde backend:", data);
+
+        if (!response.ok) {
+          alert(data.message || data.error || "Error al traer detalle.");
+          return;
+        }
+
+        setEventData(data.evento || data);
+      } catch (error) {
+        console.log("Error al traer detalle:", error);
+        alert("No se pudo conectar con el servidor.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      obtenerEvento();
+    }
+  }, [id]);
+
+  const formatearFecha = (fecha?: string) => {
+    if (!fecha) return "Fecha a confirmar";
+
+    const fechaDate = new Date(fecha);
+
+    if (isNaN(fechaDate.getTime())) {
+      return fecha;
+    }
+
+    return fechaDate.toLocaleDateString("es-AR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const obtenerUbicacionPrincipal = (ubicacion?: Ubicacion) => {
+    if (!ubicacion) return "Ubicación a confirmar";
+
+    if (ubicacion.direccion) return ubicacion.direccion;
+    if (ubicacion.barrio) return ubicacion.barrio;
+    if (ubicacion.ciudad) return ubicacion.ciudad;
+
+    return "Ubicación a confirmar";
+  };
+
+  const obtenerUbicacionSecundaria = (ubicacion?: Ubicacion) => {
+    if (!ubicacion) return "Buenos Aires";
+
+    const partes = [];
+
+    if (ubicacion.barrio) partes.push(ubicacion.barrio);
+    if (ubicacion.ciudad) partes.push(ubicacion.ciudad);
+
+    return partes.length > 0 ? partes.join(", ") : "Buenos Aires";
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#7528F0" />
+        <Text style={styles.loadingText}>Cargando detalle...</Text>
+      </View>
+    );
+  }
 
   if (!eventData) {
     return (
@@ -41,13 +141,20 @@ export default function EventDetail() {
         contentContainerStyle={styles.container}
       >
         <Image
-                  source={require("../../../assets/images/logoeba.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
+          source={require("../../../assets/images/logoeba.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
 
         <View style={styles.imageWrapper}>
-          <Image source={{ uri: eventData.image }} style={styles.heroImage} />
+          <Image
+            source={{
+              uri:
+                eventData.imagen ||
+                "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=1000",
+            }}
+            style={styles.heroImage}
+          />
 
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={22} color="#9A98A6" />
@@ -55,12 +162,14 @@ export default function EventDetail() {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.title}>{eventData.title}</Text>
+          <Text style={styles.category}>{eventData.categoria || "Evento"}</Text>
+
+          <Text style={styles.title}>{eventData.nombre}</Text>
 
           <View style={styles.interestedRow}>
             <Heart size={17} color="#EF5B5B" fill="#EF5B5B" />
             <Text style={styles.interestedText}>
-              {eventData.interested || "Personas interesadas"}
+              Personas interesadas en asistir a este evento
             </Text>
           </View>
 
@@ -77,19 +186,13 @@ export default function EventDetail() {
               }}
               style={[styles.avatar, styles.avatarOverlap]}
             />
-            <Image 
+            <Image
               source={{
                 uri: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200",
               }}
               style={[styles.avatar, styles.avatarOverlap]}
             />
-            <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=200",
-              }}
-              style={[styles.avatar, styles.avatarOverlap]}
-            />
-            <Text style={styles.avatarText}>300+</Text>
+            <Text style={styles.avatarText}>Ver usuarios</Text>
           </View>
 
           <View style={styles.infoList}>
@@ -98,12 +201,12 @@ export default function EventDetail() {
                 <MapPin size={22} color="#7B2DF0" />
               </View>
 
-              <View>
+              <View style={styles.infoTextBox}>
                 <Text style={styles.infoTitle}>
-                  {eventData.location || "Ubicación del evento"}
+                  {obtenerUbicacionPrincipal(eventData.ubicacion)}
                 </Text>
                 <Text style={styles.infoSubtitle}>
-                  {eventData.locationDetail || "Buenos Aires"}
+                  {obtenerUbicacionSecundaria(eventData.ubicacion)}
                 </Text>
               </View>
             </View>
@@ -113,19 +216,28 @@ export default function EventDetail() {
                 <CalendarDays size={22} color="#7B2DF0" />
               </View>
 
-              <View>
-                <Text style={styles.infoTitle}>
-                  {eventData.time || "Horario a confirmar"}
-                </Text>
+              <View style={styles.infoTextBox}>
+                <Text style={styles.infoTitle}>{formatearFecha(eventData.fecha)}</Text>
+                <Text style={styles.infoSubtitle}>Fecha del evento</Text>
+              </View>
+            </View>
+
+            <View style={styles.infoItem}>
+              <View style={styles.iconBox}>
+                <Users size={22} color="#7B2DF0" />
+              </View>
+
+              <View style={styles.infoTextBox}>
+                <Text style={styles.infoTitle}>Organizador</Text>
                 <Text style={styles.infoSubtitle}>
-                  {eventData.date || "Fecha a confirmar"}
+                  {eventData.organizador || "eBA"}
                 </Text>
               </View>
             </View>
           </View>
 
           <Text style={styles.description}>
-            {eventData.description ||
+            {eventData.descripcion ||
               "Evento ideal para conocer personas con intereses similares y vivir la experiencia acompañado."}
           </Text>
 
@@ -167,16 +279,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F4F6FB",
   },
-  container: {
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 50,
-  },
   center: {
     flex: 1,
     backgroundColor: "#F4F6FB",
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: "#6F6D7A",
+    fontWeight: "600",
   },
   errorText: {
     fontSize: 20,
@@ -193,6 +305,11 @@ const styles = StyleSheet.create({
   backFallbackText: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  container: {
+    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 50,
   },
   logo: {
     width: 76,
@@ -223,6 +340,13 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 6,
+  },
+  category: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#7528F0",
+    marginBottom: 8,
+    textTransform: "capitalize",
   },
   title: {
     fontSize: 30,
@@ -277,6 +401,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
+  },
+  infoTextBox: {
+    flex: 1,
   },
   infoTitle: {
     fontSize: 15,
