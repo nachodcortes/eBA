@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Search, MapPin } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { API_URL } from "../config/api";
 import BottomNav from "../components/BottomNav";
 
@@ -37,19 +39,20 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const usuarioGuardado = localStorage.getItem("usuario");
-
-    if (!usuarioGuardado) {
-      router.replace("/login" as any);
-      return;
-    }
-
-    const obtenerEventos = async () => {
+    const iniciarHome = async () => {
       try {
+        const usuarioGuardado = await AsyncStorage.getItem("usuario");
+
+        if (!usuarioGuardado) {
+          router.replace("/login" as any);
+          return;
+        }
+
+        console.log("Usuario guardado:", JSON.parse(usuarioGuardado));
+
         const response = await fetch(`${API_URL}/api/eventos`);
         const data = await response.json();
 
-        console.log("Usuario guardado:", JSON.parse(usuarioGuardado));
         console.log("Respuesta eventos:", data);
 
         if (!response.ok) {
@@ -59,14 +62,14 @@ export default function HomeScreen() {
 
         setEventos(data.eventos || []);
       } catch (error) {
-        console.log("Error al traer eventos:", error);
+        console.log("Error al iniciar home:", error);
         alert("No se pudo conectar con el servidor.");
       } finally {
         setLoading(false);
       }
     };
 
-    obtenerEventos();
+    iniciarHome();
   }, []);
 
   const irADetalle = (eventoId: string) => {
@@ -105,6 +108,18 @@ export default function HomeScreen() {
     }
 
     return "Ubicación a confirmar";
+  };
+
+  const obtenerImagen = (imagen?: string) => {
+    if (!imagen || imagen.trim() === "") {
+      return "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800";
+    }
+
+    if (imagen.startsWith("http")) {
+      return imagen;
+    }
+
+    return `${API_URL}${imagen}`;
   };
 
   const eventosDestacados = eventos.filter((evento) => evento.esPromocionado);
@@ -197,11 +212,7 @@ export default function HomeScreen() {
                   onPress={() => irADetalle(evento._id)}
                 >
                   <Image
-                    source={{
-                      uri:
-                        evento.imagen ||
-                        "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800",
-                    }}
+                    source={{ uri: obtenerImagen(evento.imagen) }}
                     style={styles.featuredImage}
                   />
 
@@ -234,11 +245,7 @@ export default function HomeScreen() {
                   onPress={() => irADetalle(evento._id)}
                 >
                   <Image
-                    source={{
-                      uri:
-                        evento.imagen ||
-                        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800",
-                    }}
+                    source={{ uri: obtenerImagen(evento.imagen) }}
                     style={styles.recommendedImage}
                   />
 

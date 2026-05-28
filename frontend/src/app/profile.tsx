@@ -6,7 +6,7 @@ const cerrarSesion = () => {
   localStorage.removeItem("token");
   router.replace("/login" as any);
 };
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
