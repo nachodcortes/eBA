@@ -16,10 +16,10 @@ import {
   MapPin,
   Users,
 } from "lucide-react-native";
+import Logo from "../../components/Logo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../../config/api";
-import Logo from "@/components/Logo";
 
 type Ubicacion = {
   ciudad?: string;
@@ -44,6 +44,7 @@ export default function EventDetail() {
 
   const [eventData, setEventData] = useState<Evento | null>(null);
   const [loading, setLoading] = useState(true);
+  const [registrando, setRegistrando] = useState(false);
 
   useEffect(() => {
     const iniciarDetalle = async () => {
@@ -81,6 +82,62 @@ export default function EventDetail() {
 
     iniciarDetalle();
   }, [id]);
+
+  const registrarAsistencia = async () => {
+    try {
+      if (registrando) return;
+
+      setRegistrando(true);
+
+      const usuarioGuardado = await AsyncStorage.getItem("usuario");
+
+      if (!usuarioGuardado) {
+        router.replace("/login" as any);
+        return;
+      }
+
+      if (!eventData?._id) {
+        alert("No se encontró el evento.");
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioGuardado);
+      const usuarioId = usuario.id || usuario._id;
+
+      if (!usuarioId) {
+        alert("No se encontró el usuario logueado.");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/asistencias`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usuarioId,
+          eventoId: eventData._id,
+          estado: "interesado",
+        }),
+      });
+
+      const data = await response.json();
+
+      console.log("Respuesta asistencia:", data);
+
+      if (!response.ok) {
+        alert(data.error || "Error al registrar asistencia.");
+        return;
+      }
+
+      router.push(`/event-people/${eventData._id}` as any);
+    } catch (error) {
+      console.log("Error al registrar asistencia:", error);
+      alert("No se pudo registrar la asistencia.");
+    } finally {
+      setRegistrando(false);
+    }
+  };
 
   const formatearFecha = (fecha?: string) => {
     if (!fecha) return "Fecha a confirmar";
@@ -145,7 +202,10 @@ export default function EventDetail() {
       <View style={styles.center}>
         <Text style={styles.errorText}>No se encontró el evento</Text>
 
-        <TouchableOpacity style={styles.backFallback} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backFallback}
+          onPress={() => router.back()}
+        >
           <Text style={styles.backFallbackText}>Volver</Text>
         </TouchableOpacity>
       </View>
@@ -158,15 +218,17 @@ export default function EventDetail() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <Logo size="large" centered={true} showText={true} />
-
+        <Logo size="large" centered={false} showText={true} />
         <View style={styles.imageWrapper}>
           <Image
             source={{ uri: obtenerImagen(eventData.imagen) }}
             style={styles.heroImage}
           />
 
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <ArrowLeft size={22} color="#9A98A6" />
           </TouchableOpacity>
         </View>
@@ -257,13 +319,46 @@ export default function EventDetail() {
             <Text style={styles.readMoreText}>Leer más</Text>
           </TouchableOpacity>
 
-
           <TouchableOpacity
-            style={styles.mainButton}
+            style={styles.secondaryCard}
             activeOpacity={0.85}
             onPress={() => router.push(`/event-people/${eventData._id}` as any)}
           >
-            <Text style={styles.mainButtonText}>Quiero ir!</Text>
+            <View>
+              <Text style={styles.secondaryTitle}>Publicaciones</Text>
+              <Text style={styles.secondaryText}>
+                Mirá qué están compartiendo sobre este evento.
+              </Text>
+            </View>
+            <Text style={styles.secondaryArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryCard}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/event-people/${eventData._id}` as any)}
+          >
+            <View>
+              <Text style={styles.secondaryTitle}>Personas interesadas</Text>
+              <Text style={styles.secondaryText}>
+                Descubrí quiénes quieren ir y conectá antes del evento.
+              </Text>
+            </View>
+            <Text style={styles.secondaryArrow}>›</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.mainButton,
+              registrando && styles.mainButtonDisabled,
+            ]}
+            activeOpacity={0.85}
+            onPress={registrarAsistencia}
+            disabled={registrando}
+          >
+            <Text style={styles.mainButtonText}>
+              {registrando ? "Registrando..." : "Quiero ir!"}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -312,6 +407,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 46,
     marginBottom: 22,
+    alignSelf: "center",
   },
   imageWrapper: {
     height: 245,
@@ -461,6 +557,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginHorizontal: 22,
     marginTop: 14,
+  },
+  mainButtonDisabled: {
+    opacity: 0.7,
   },
   mainButtonText: {
     color: "#FFFFFF",

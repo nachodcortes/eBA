@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Plus } from "lucide-react-native";
+import { ArrowLeft, Plus, UserRound } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../../config/api";
@@ -32,45 +32,32 @@ type Evento = {
   esPromocionado?: boolean;
 };
 
-const personasMock = [
-  {
-    id: "1",
-    nombre: "Valentina Martínez",
-    ubicacion: "Monte Grande",
-    edad: 24,
-    foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
-  },
-  {
-    id: "2",
-    nombre: "Luz Barrientos",
-    ubicacion: "Villa Urquiza",
-    edad: 22,
-    foto: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300",
-  },
-  {
-    id: "3",
-    nombre: "Facundo Castillo",
-    ubicacion: "Olivos",
-    edad: 20,
-    foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300",
-  },
-  {
-    id: "4",
-    nombre: "Sofía Rubachin",
-    ubicacion: "Almagro",
-    edad: 22,
-    foto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300",
-  },
-];
+type UsuarioAsistencia = {
+  _id?: string;
+  id?: string;
+  nombre?: string;
+  email?: string;
+  edad?: number;
+  intereses?: string[];
+  fotoPerfil?: string;
+};
+
+type Asistencia = {
+  _id: string;
+  usuarioId: UsuarioAsistencia;
+  eventoId: string;
+  estado: string;
+};
 
 export default function EventPeopleScreen() {
   const { id } = useLocalSearchParams();
 
   const [evento, setEvento] = useState<Evento | null>(null);
+  const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tabActiva, setTabActiva] = useState<"personas" | "publicaciones" | "info">(
-    "personas"
-  );
+  const [tabActiva, setTabActiva] = useState<
+    "personas" | "publicaciones" | "info"
+  >("personas");
 
   useEffect(() => {
     const iniciarPantalla = async () => {
@@ -82,15 +69,37 @@ export default function EventPeopleScreen() {
           return;
         }
 
-        const response = await fetch(`${API_URL}/api/eventos/${id}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          alert(data.message || data.error || "Error al traer evento.");
+        if (!id) {
+          alert("No se encontró el evento.");
           return;
         }
 
-        setEvento(data.evento || data);
+        const responseEvento = await fetch(`${API_URL}/api/eventos/${id}`);
+        const dataEvento = await responseEvento.json();
+
+        if (!responseEvento.ok) {
+          alert(dataEvento.message || dataEvento.error || "Error al traer evento.");
+          return;
+        }
+
+        setEvento(dataEvento.evento || dataEvento);
+
+        const responseAsistencias = await fetch(
+          `${API_URL}/api/asistencias/evento/${id}`
+        );
+
+        const dataAsistencias = await responseAsistencias.json();
+
+        if (!responseAsistencias.ok) {
+          alert(
+            dataAsistencias.message ||
+              dataAsistencias.error ||
+              "Error al traer personas interesadas."
+          );
+          return;
+        }
+
+        setAsistencias(dataAsistencias.asistencias || []);
       } catch (error) {
         console.log("Error en pantalla de personas:", error);
         alert("No se pudo conectar con el servidor.");
@@ -139,6 +148,11 @@ export default function EventPeopleScreen() {
     return "Ubicación a confirmar";
   };
 
+  const obtenerInicial = (nombre?: string) => {
+    if (!nombre) return "U";
+    return nombre.charAt(0).toUpperCase();
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -152,6 +166,7 @@ export default function EventPeopleScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>No se encontró el evento</Text>
+
         <TouchableOpacity onPress={() => router.back()} style={styles.backFallback}>
           <Text style={styles.backFallbackText}>Volver</Text>
         </TouchableOpacity>
@@ -170,27 +185,35 @@ export default function EventPeopleScreen() {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Image source={{ uri: obtenerImagen(evento.imagen) }} style={styles.eventImage} />
+          <Image
+            source={{ uri: obtenerImagen(evento.imagen) }}
+            style={styles.eventImage}
+          />
 
           <View style={styles.headerInfo}>
             <Text style={styles.eventTitle}>{evento.nombre}</Text>
             <Text style={styles.eventDate}>{formatearFecha(evento.fecha)}</Text>
-            <Text style={styles.eventLocation}>{obtenerUbicacion(evento.ubicacion)}</Text>
+            <Text style={styles.eventLocation}>
+              {obtenerUbicacion(evento.ubicacion)}
+            </Text>
 
             <View style={styles.avatarRow}>
-              {personasMock.slice(0, 3).map((persona, index) => (
-                <Image
-                  key={persona.id}
-                  source={{ uri: persona.foto }}
+              {asistencias.slice(0, 3).map((asistencia, index) => (
+                <View
+                  key={asistencia._id}
                   style={[styles.smallAvatar, index > 0 && styles.avatarOverlap]}
-                />
+                >
+                  <Text style={styles.smallAvatarText}>
+                    {obtenerInicial(asistencia.usuarioId?.nombre)}
+                  </Text>
+                </View>
               ))}
 
               <View style={styles.plusCircle}>
                 <Plus size={13} color="#FFFFFF" />
               </View>
 
-              <Text style={styles.moreText}>+505</Text>
+              <Text style={styles.moreText}>+{asistencias.length}</Text>
             </View>
           </View>
         </View>
@@ -238,22 +261,50 @@ export default function EventPeopleScreen() {
 
         {tabActiva === "personas" && (
           <View style={styles.peopleList}>
-            {personasMock.map((persona) => (
-              <View key={persona.id} style={styles.personCard}>
-                <Image source={{ uri: persona.foto }} style={styles.personAvatar} />
-
-                <View style={styles.personInfo}>
-                  <Text style={styles.personName}>{persona.nombre}</Text>
-                  <Text style={styles.personSubtitle}>
-                    {persona.ubicacion}, {persona.edad} años
-                  </Text>
-                </View>
-
-                <TouchableOpacity style={styles.connectButton} activeOpacity={0.85}>
-                  <Text style={styles.connectButtonText}>+</Text>
-                </TouchableOpacity>
+            {asistencias.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>Todavía no hay interesados</Text>
+                <Text style={styles.emptyText}>
+                  Cuando alguien toque “Quiero ir”, va a aparecer en esta lista.
+                </Text>
               </View>
-            ))}
+            ) : (
+              asistencias.map((asistencia) => {
+                const usuario = asistencia.usuarioId;
+
+                return (
+                  <View key={asistencia._id} style={styles.personCard}>
+                    {usuario?.fotoPerfil ? (
+                      <Image
+                        source={{ uri: usuario.fotoPerfil }}
+                        style={styles.personAvatar}
+                      />
+                    ) : (
+                      <View style={styles.personAvatarFallback}>
+                        <Text style={styles.personAvatarText}>
+                          {obtenerInicial(usuario?.nombre)}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.personInfo}>
+                      <Text style={styles.personName}>
+                        {usuario?.nombre || "Usuario"}
+                      </Text>
+
+                      <Text style={styles.personSubtitle}>
+                        {usuario?.email || "Sin email disponible"}
+                      </Text>
+
+                    </View>
+
+                    <TouchableOpacity style={styles.connectButton} activeOpacity={0.85}>
+                      <UserRound size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
           </View>
         )}
 
@@ -372,8 +423,16 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
+    backgroundColor: "#8B35E8",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
+  },
+  smallAvatarText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
   },
   avatarOverlap: {
     marginLeft: -8,
@@ -402,7 +461,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 4,
     marginBottom: 28,
-    boxShadow: "0px 8px 18px rgba(117,40,240,0.14)" as any,
   },
   tab: {
     flex: 1,
@@ -434,13 +492,26 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
-    boxShadow: "0px 10px 18px rgba(0,0,0,0.13)" as any,
   },
   personAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     marginRight: 14,
+  },
+  personAvatarFallback: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#8B35E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  personAvatarText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
   },
   personInfo: {
     flex: 1,
@@ -454,6 +525,12 @@ const styles = StyleSheet.create({
   personSubtitle: {
     fontSize: 12,
     color: "#8D8A99",
+    marginBottom: 3,
+  },
+  statusText: {
+    fontSize: 11,
+    color: "#7528F0",
+    fontWeight: "700",
   },
   connectButton: {
     width: 54,
@@ -462,12 +539,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#B484F2",
     alignItems: "center",
     justifyContent: "center",
-  },
-  connectButtonText: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "900",
-    marginTop: -2,
   },
   emptyCard: {
     backgroundColor: "#FFFFFF",
