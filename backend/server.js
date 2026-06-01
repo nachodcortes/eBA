@@ -6,6 +6,7 @@ const cors = require("cors");
 
 const usuarioRoutes = require("./routes/usuario.routes");
 const eventoRoutes = require("./routes/evento.routes");
+const asistenciaRoutes = require("./routes/asistencia.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -64,9 +65,10 @@ app.get("/test-mongo", (req, res) => {
     database: mongoose.connection.name,
   });
 });
-
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/eventos", eventoRoutes);
+app.use("/api/asistencias", asistenciaRoutes);
+
 
 app.use((req, res) => {
   res.status(404).json({
@@ -74,6 +76,10 @@ app.use((req, res) => {
   });
 });
 
+app.use((req, res, next) => {
+  console.log("REQUEST:", req.method, req.url);
+  next();
+});
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor Express escuchando en http://0.0.0.0:${PORT}`);
 });
