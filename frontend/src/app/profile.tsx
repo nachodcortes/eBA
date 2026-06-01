@@ -172,26 +172,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Actividad</Text>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Eventos</Text>
-            </View>
-
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Favoritos</Text>
-            </View>
-
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Conexiones</Text>
-            </View>
-          </View>
-        </View>
+        
 
         <TouchableOpacity
           style={styles.logoutButton}

@@ -11,6 +11,7 @@ import { router } from "expo-router";
 import { EyeOff } from "lucide-react-native";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Logo from "@/components/Logo";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -84,11 +85,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.content}>
-        <Image
-          source={require("../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Logo size="large" centered={true} showText={true} />
 
         <Text style={styles.title}>
           ¡Hola de <Text style={styles.highlight}>vuelta!</Text>

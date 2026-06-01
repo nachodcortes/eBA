@@ -19,6 +19,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../../config/api";
+import Logo from "@/components/Logo";
 
 type Ubicacion = {
   ciudad?: string;
@@ -157,11 +158,7 @@ export default function EventDetail() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <Image
-          source={require("../../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Logo size="large" centered={true} showText={true} />
 
         <View style={styles.imageWrapper}>
           <Image
@@ -260,25 +257,6 @@ export default function EventDetail() {
             <Text style={styles.readMoreText}>Leer más</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryCard}>
-            <View>
-              <Text style={styles.secondaryTitle}>Publicaciones</Text>
-              <Text style={styles.secondaryText}>
-                Mirá qué están compartiendo sobre este evento.
-              </Text>
-            </View>
-            <Text style={styles.secondaryArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.secondaryCard}>
-            <View>
-              <Text style={styles.secondaryTitle}>Personas interesadas</Text>
-              <Text style={styles.secondaryText}>
-                Descubrí quiénes quieren ir y conectá antes del evento.
-              </Text>
-            </View>
-            <Text style={styles.secondaryArrow}>›</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.mainButton}

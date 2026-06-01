@@ -5,22 +5,19 @@ import {
   Image,
   TouchableOpacity,
 } from "react-native";
+import Logo from "../components/Logo";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function WelcomeScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.content}>
-        <Image
-          source={require("../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+       <Logo size="large" centered={true} showText={true} />
 
         <Image
           source={require("../../assets/images/mascotaseba.png")}
           style={styles.characters}
-          resizeMode="contain"
+          showText="contain"
         />
 
         <Text style={styles.title}>

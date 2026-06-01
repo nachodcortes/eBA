@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { EyeOff } from "lucide-react-native";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Logo from "@/components/Logo";
 export default function RegisterScreen() {
   const params = useLocalSearchParams();
 
@@ -125,11 +126,9 @@ export default function RegisterScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <Image
-          source={require("../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Logo size="large" centered={true} showText={true} />
+
+        
 
         <Text style={styles.title}>
           Registrate <Text style={styles.dark}>a eBA</Text>

@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   Search,
   SlidersHorizontal,
@@ -17,7 +17,7 @@ import {
   Heart,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import Logo from "../components/Logo";
 import { API_URL } from "../config/api";
 import BottomNav from "../components/BottomNav";
 
@@ -40,35 +40,59 @@ type Evento = {
 };
 
 const categorias = [
-  "musica",
+  "festival",
+  "recital",
+  "fiesta",
   "teatro",
-  "deportes",
   "cultura",
   "gastronomia",
-  "fiesta",
+  "networking",
 ];
 
 const busquedasPopulares = [
   "Lollapalooza",
+  "Primavera",
+  "Lali",
+  "Airbag",
+  "BRESH",
   "Techno",
-  "Teatro",
-  "Festival",
 ];
 
 export default function ExploreScreen() {
+  const params = useLocalSearchParams();
+
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [textoBusqueda, setTextoBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [buscoAlgo, setBuscoAlgo] = useState(false);
   const [categoriaActiva, setCategoriaActiva] = useState("");
+  const [favoritos, setFavoritos] = useState<string[]>([]);
 
   useEffect(() => {
     const iniciarPantalla = async () => {
       try {
+        setLoading(true);
+
         const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
         if (!usuarioGuardado) {
           router.replace("/login" as any);
+          return;
+        }
+
+        const favoritosGuardados = await AsyncStorage.getItem("favoritos");
+        setFavoritos(favoritosGuardados ? JSON.parse(favoritosGuardados) : []);
+
+        if (params.filtro === "promocionados") {
+          setBuscoAlgo(true);
+          setCategoriaActiva("");
+          setTextoBusqueda("");
+          await obtenerEventosPromocionados();
+          return;
+        }
+
+        if (params.categoria) {
+          await filtrarPorCategoria(String(params.categoria));
           return;
         }
 
@@ -81,7 +105,7 @@ export default function ExploreScreen() {
     };
 
     iniciarPantalla();
-  }, []);
+  }, [params.filtro, params.categoria]);
 
   const obtenerEventosRecomendados = async () => {
     try {
@@ -94,8 +118,27 @@ export default function ExploreScreen() {
       }
 
       setEventos(data.eventos || []);
+      setBuscoAlgo(false);
+      setCategoriaActiva("");
     } catch (error) {
       console.log("Error al traer eventos:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const obtenerEventosPromocionados = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/eventos/promocionados`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || data.error || "Error al traer eventos promocionados.");
+        return;
+      }
+
+      setEventos(data.eventos || []);
+    } catch (error) {
+      console.log("Error al traer promocionados:", error);
       alert("No se pudo conectar con el servidor.");
     }
   };
@@ -158,6 +201,30 @@ export default function ExploreScreen() {
     }
   };
 
+  const limpiarFiltros = async () => {
+    setTextoBusqueda("");
+    setCategoriaActiva("");
+    setBuscoAlgo(false);
+    await obtenerEventosRecomendados();
+  };
+
+  const toggleFavorito = async (eventoId: string) => {
+    let nuevosFavoritos: string[];
+
+    if (favoritos.includes(eventoId)) {
+      nuevosFavoritos = favoritos.filter((id) => id !== eventoId);
+    } else {
+      nuevosFavoritos = [...favoritos, eventoId];
+    }
+
+    setFavoritos(nuevosFavoritos);
+    await AsyncStorage.setItem("favoritos", JSON.stringify(nuevosFavoritos));
+  };
+
+  const esFavorito = (eventoId: string) => {
+    return favoritos.includes(eventoId);
+  };
+
   const irADetalle = (eventoId: string) => {
     router.push(`/event-detail/${eventoId}` as any);
   };
@@ -202,6 +269,13 @@ export default function ExploreScreen() {
     return "Ubicación a confirmar";
   };
 
+  const obtenerTituloSeccion = () => {
+    if (params.filtro === "promocionados") return "Eventos destacados";
+    if (categoriaActiva) return `Eventos de ${categoriaActiva}`;
+    if (buscoAlgo) return "Resultados";
+    return "Eventos recomendados";
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingScreen}>
@@ -216,12 +290,9 @@ export default function ExploreScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
       >
-        <Image
-          source={require("../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Logo size="large" centered={false} showText={true} />
 
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
@@ -236,7 +307,11 @@ export default function ExploreScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.filterButton} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.filterButton}
+            activeOpacity={0.85}
+            onPress={limpiarFiltros}
+          >
             <SlidersHorizontal size={24} color="#7528F0" />
           </TouchableOpacity>
         </View>
@@ -305,12 +380,10 @@ export default function ExploreScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {buscoAlgo ? "Resultados" : "Eventos recomendados"}
-          </Text>
+          <Text style={styles.sectionTitle}>{obtenerTituloSeccion()}</Text>
 
-          <TouchableOpacity>
-            <Text style={styles.seeAll}>Ver todos</Text>
+          <TouchableOpacity onPress={limpiarFiltros}>
+            <Text style={styles.seeAll}>Limpiar</Text>
           </TouchableOpacity>
         </View>
 
@@ -360,8 +433,19 @@ export default function ExploreScreen() {
                   </View>
                 </View>
 
-                <TouchableOpacity style={styles.heartButton}>
-                  <Heart size={22} color="#9B98A8" />
+                <TouchableOpacity
+                  style={styles.heartButton}
+                  activeOpacity={0.85}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    toggleFavorito(evento._id);
+                  }}
+                >
+                  <Heart
+                    size={22}
+                    color={esFavorito(evento._id) ? "#EF4444" : "#9B98A8"}
+                    fill={esFavorito(evento._id) ? "#EF4444" : "transparent"}
+                  />
                 </TouchableOpacity>
               </TouchableOpacity>
             ))}
@@ -501,6 +585,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "900",
     color: "#2D2934",
+    textTransform: "capitalize",
   },
   seeAll: {
     fontSize: 13,
@@ -593,9 +678,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heartButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#F8F7FF",
     alignItems: "center",
     justifyContent: "center",

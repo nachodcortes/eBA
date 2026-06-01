@@ -4,15 +4,14 @@ import {
   Text,
   StyleSheet,
   Image,
-  TextInput,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { Search, MapPin } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import Logo from "../components/Logo";
 import { API_URL } from "../config/api";
 import BottomNav from "../components/BottomNav";
 
@@ -34,6 +33,15 @@ type Evento = {
   esPromocionado?: boolean;
 };
 
+const categoriasHome = [
+  { label: "Festival", value: "festival" },
+  { label: "Recital", value: "recital" },
+  { label: "Fiesta", value: "fiesta" },
+  { label: "Teatro", value: "teatro" },
+  { label: "Cultura", value: "cultura" },
+  { label: "Gastronomía", value: "gastronomia" },
+];
+
 export default function HomeScreen() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,12 +56,8 @@ export default function HomeScreen() {
           return;
         }
 
-        console.log("Usuario guardado:", JSON.parse(usuarioGuardado));
-
         const response = await fetch(`${API_URL}/api/eventos`);
         const data = await response.json();
-
-        console.log("Respuesta eventos:", data);
 
         if (!response.ok) {
           alert(data.message || data.error || "Error al traer eventos.");
@@ -74,6 +78,22 @@ export default function HomeScreen() {
 
   const irADetalle = (eventoId: string) => {
     router.push(`/event-detail/${eventoId}` as any);
+  };
+
+  const irAExplore = () => {
+    router.push("/explore" as any);
+  };
+
+  const irAExplorePromocionados = () => {
+    router.push("/explore?filtro=promocionados" as any);
+  };
+
+  const irAExploreTodos = () => {
+    router.push("/explore?filtro=todos" as any);
+  };
+
+  const irAExploreCategoria = (categoria: string) => {
+    router.push(`/explore?categoria=${categoria}` as any);
   };
 
   const formatearFecha = (fecha?: string) => {
@@ -99,13 +119,8 @@ export default function HomeScreen() {
       return `${ubicacion.barrio}, ${ubicacion.ciudad}`;
     }
 
-    if (ubicacion.ciudad) {
-      return ubicacion.ciudad;
-    }
-
-    if (ubicacion.direccion) {
-      return ubicacion.direccion;
-    }
+    if (ubicacion.ciudad) return ubicacion.ciudad;
+    if (ubicacion.direccion) return ubicacion.direccion;
 
     return "Ubicación a confirmar";
   };
@@ -126,10 +141,14 @@ export default function HomeScreen() {
   const eventosRecomendados = eventos.filter((evento) => !evento.esPromocionado);
 
   const destacadosParaMostrar =
-    eventosDestacados.length > 0 ? eventosDestacados : eventos.slice(0, 2);
+    eventosDestacados.length > 0
+      ? eventosDestacados.slice(0, 2)
+      : eventos.slice(0, 2);
 
   const recomendadosParaMostrar =
-    eventosRecomendados.length > 0 ? eventosRecomendados : eventos.slice(2);
+    eventosRecomendados.length > 0
+      ? eventosRecomendados.slice(0, 4)
+      : eventos.slice(2, 6);
 
   if (loading) {
     return (
@@ -145,31 +164,48 @@ export default function HomeScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
       >
-        <Image
-          source={require("../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+       <Logo size="large" centered={false} showText={true} />
 
         <Text style={styles.title}>¿Qué te pinta hoy?</Text>
 
-        <View style={styles.searchBox}>
+        <Pressable style={styles.searchBox} onPress={irAExplore}>
           <Search size={18} color="#A7A7B0" />
+          <Text style={styles.fakeInput}>Buscar eventos, personas...</Text>
+        </Pressable>
 
-          <TextInput
-            placeholder="Buscar eventos, personas..."
-            placeholderTextColor="#A7A7B0"
-            style={styles.input}
-          />
-        </View>
-
-       
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categories}
+          contentContainerStyle={styles.categoriesContent}
+        >
+          {categoriasHome.map((item, index) => (
+            <Pressable
+              key={item.value}
+              style={[styles.category, index === 0 && styles.categoryActive]}
+              onPress={() => irAExploreCategoria(item.value)}
+            >
+              <Text
+                style={[
+                  styles.categoryText,
+                  index === 0 && styles.categoryTextActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Destacados</Text>
-          <Text style={styles.seeAll}>Ver todos</Text>
         </View>
+
+        <Pressable style={styles.fullSeeAllButton} onPress={irAExplorePromocionados}>
+          <Text style={styles.fullSeeAllText}>Ver todos los destacados</Text>
+        </Pressable>
 
         {eventos.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -182,10 +218,9 @@ export default function HomeScreen() {
           <>
             <View style={styles.featuredGrid}>
               {destacadosParaMostrar.map((evento) => (
-                <TouchableOpacity
+                <Pressable
                   key={evento._id}
                   style={styles.featuredCard}
-                  activeOpacity={0.85}
                   onPress={() => irADetalle(evento._id)}
                 >
                   <Image
@@ -204,21 +239,25 @@ export default function HomeScreen() {
                       ↗ {evento.categoria || "Evento"}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recomendados</Text>
-              <Text style={styles.seeAll}>Ver todos</Text>
             </View>
+
+            <Pressable style={styles.fullSeeAllButton} onPress={irAExploreTodos}>
+              <Text style={styles.fullSeeAllText}>
+                Ver todos los recomendados
+              </Text>
+            </Pressable>
 
             <View style={styles.recommendedList}>
               {recomendadosParaMostrar.map((evento) => (
-                <TouchableOpacity
+                <Pressable
                   key={evento._id}
                   style={styles.recommendedCard}
-                  activeOpacity={0.85}
                   onPress={() => irADetalle(evento._id)}
                 >
                   <Image
@@ -240,7 +279,7 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               ))}
             </View>
           </>
@@ -271,13 +310,27 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 70,
     paddingHorizontal: 28,
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
-  logo: {
-    width: 76,
-    height: 46,
-    marginBottom: 22,
-  },
+  logoRow: {
+  flexDirection: "row",
+  marginBottom: 22,
+  alignItems: "center",
+  alignSelf: "flex-start",
+},
+
+logo: {
+  width: 48,
+  height: 48,
+  marginRight: 10,
+},
+
+logoText: {
+  fontSize: 30,
+  fontWeight: "800",
+  color: "#332047",
+  letterSpacing: 0.5,
+},
   title: {
     fontSize: 30,
     fontWeight: "700",
@@ -295,21 +348,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     marginBottom: 26,
   },
-  input: {
+  fakeInput: {
     marginLeft: 10,
     fontSize: 15,
-    flex: 1,
-    color: "#333",
-    outlineStyle: "none" as any,
+    color: "#A7A7B0",
   },
   categories: {
     marginBottom: 34,
+  },
+  categoriesContent: {
+    paddingRight: 16,
   },
   category: {
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 22,
     marginRight: 14,
+    backgroundColor: "#FFFFFF",
   },
   categoryActive: {
     backgroundColor: "#E7F3FF",
@@ -317,27 +372,32 @@ const styles = StyleSheet.create({
   categoryText: {
     color: "#A0A0AA",
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   categoryTextActive: {
     color: "#177EEA",
-    fontWeight: "700",
+    fontWeight: "800",
   },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 22,
     fontWeight: "700",
     color: "#25252C",
   },
-  seeAll: {
+  fullSeeAllButton: {
+    backgroundColor: "#F1ECFF",
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    marginBottom: 18,
+    alignSelf: "flex-start",
+  },
+  fullSeeAllText: {
+    color: "#7528F0",
     fontSize: 14,
-    color: "#7B2DF0",
-    fontWeight: "600",
+    fontWeight: "800",
   },
   featuredGrid: {
     flexDirection: "row",
@@ -378,12 +438,13 @@ const styles = StyleSheet.create({
     color: "#E9E9F2",
     fontSize: 12,
     marginTop: 3,
+    textTransform: "capitalize",
   },
   recommendedList: {
     marginBottom: 20,
   },
   recommendedCard: {
-    height: 88,
+    minHeight: 88,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,

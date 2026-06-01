@@ -8,7 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import { router } from "expo-router";
-
+import Logo from "@/components/Logo";
 const availableInterests = [
   "techno",
   "festivales",
@@ -47,11 +47,7 @@ export default function RegisterInterestsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <Image
-          source={require("../../assets/images/logoeba.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+       <Logo size="large" centered={true} showText={true} />
 
         <Text style={styles.title}>
           Elegí tus <Text style={styles.highlight}>intereses</Text>
