@@ -4,15 +4,42 @@ const router = express.Router();
 const Asistencia = require("../models/Asistencia");
 
 // Registrar asistencia a un evento
+// Registrar asistencia a un evento
 router.post("/", async (req, res) => {
   try {
     const { usuarioId, eventoId, estado } = req.body;
 
-    const asistencia = new Asistencia({ usuarioId, eventoId, estado });
+    if (!usuarioId || !eventoId) {
+      return res.status(400).json({
+        error: "Faltan datos obligatorios",
+        detalle: "usuarioId y eventoId son requeridos",
+      });
+    }
+
+    const asistenciaExistente = await Asistencia.findOne({
+      usuarioId,
+      eventoId,
+    });
+
+    if (asistenciaExistente) {
+      return res.json({
+        message: "El usuario ya estaba registrado en este evento",
+        yaExiste: true,
+        asistencia: asistenciaExistente,
+      });
+    }
+
+    const asistencia = new Asistencia({
+      usuarioId,
+      eventoId,
+      estado: estado || "interesado",
+    });
+
     await asistencia.save();
 
-    res.json({
+    res.status(201).json({
       message: "Asistencia registrada correctamente",
+      yaExiste: false,
       asistencia,
     });
   } catch (error) {

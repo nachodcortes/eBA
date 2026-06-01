@@ -14,8 +14,8 @@ const asistenciaSchema = new mongoose.Schema(
     },
     estado: {
       type: String,
-      enum: ["voy", "interesado", "cancelado"],
-      default: "voy",
+      enum: ["interesado", "confirmado", "cancelado"],
+      default: "interesado",
     },
   },
   {
@@ -23,4 +23,7 @@ const asistenciaSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Asistencia", asistenciaSchema, "asistencias");
+// Evita que un mismo usuario se registre dos veces al mismo evento
+asistenciaSchema.index({ usuarioId: 1, eventoId: 1 }, { unique: true });
+
+module.exports = mongoose.model("Asistencia", asistenciaSchema);
