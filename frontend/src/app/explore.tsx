@@ -225,8 +225,60 @@ export default function ExploreScreen() {
     return favoritos.includes(eventoId);
   };
 
-  const irADetalle = (eventoId: string) => {
-    router.push(`/event-detail/${eventoId}` as any);
+  const irADetalle = async (eventoId: string) => {
+    try {
+      const usuarioGuardado = await AsyncStorage.getItem("usuario");
+
+      if (!usuarioGuardado) {
+        router.replace("/login" as any);
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioGuardado);
+      const usuarioId = usuario.id || usuario._id;
+
+      if (!usuarioId) {
+        router.push(`/event-detail/${eventoId}` as any);
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/asistencias/usuario/${usuarioId}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.log("Error al verificar asistencia:", data);
+        router.push(`/event-detail/${eventoId}` as any);
+        return;
+      }
+
+      const asistencias = data.asistencias || [];
+
+      const yaEstaInteresado = asistencias.some((asistencia: any) => {
+        const evento = asistencia.eventoId;
+
+        if (!evento) {
+          return false;
+        }
+
+        if (typeof evento === "string") {
+          return evento === eventoId;
+        }
+
+        return evento._id === eventoId;
+      });
+
+      if (yaEstaInteresado) {
+        router.push(`/event-people/${eventoId}` as any);
+      } else {
+        router.push(`/event-detail/${eventoId}` as any);
+      }
+    } catch (error) {
+      console.log("Error verificando asistencia:", error);
+      router.push(`/event-detail/${eventoId}` as any);
+    }
   };
 
   const obtenerImagen = (imagen?: string) => {
@@ -292,7 +344,7 @@ export default function ExploreScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Logo size="large" centered={false} showText={true} />
+        <Logo size="large" centered={true} showText={false} />
 
         <View style={styles.searchRow}>
           <View style={styles.searchBox}>
@@ -518,7 +570,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#D8C8FF",
-    boxShadow: "0px 5px 12px rgba(117,40,240,0.18)" as any,
   },
   categories: {
     marginBottom: 34,
@@ -531,7 +582,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E0D9F4",
     marginRight: 12,
-    boxShadow: "0px 4px 8px rgba(0,0,0,0.08)" as any,
   },
   categoryActive: {
     backgroundColor: "#7528F0",
@@ -627,7 +677,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
-    boxShadow: "0px 6px 14px rgba(0,0,0,0.08)" as any,
   },
   eventImage: {
     width: 116,

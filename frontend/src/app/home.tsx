@@ -76,8 +76,60 @@ export default function HomeScreen() {
     iniciarHome();
   }, []);
 
-  const irADetalle = (eventoId: string) => {
-    router.push(`/event-detail/${eventoId}` as any);
+  const irADetalle = async (eventoId: string) => {
+    try {
+      const usuarioGuardado = await AsyncStorage.getItem("usuario");
+
+      if (!usuarioGuardado) {
+        router.replace("/login" as any);
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioGuardado);
+      const usuarioId = usuario.id || usuario._id;
+
+      if (!usuarioId) {
+        router.push(`/event-detail/${eventoId}` as any);
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/api/asistencias/usuario/${usuarioId}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.log("Error al verificar asistencia:", data);
+        router.push(`/event-detail/${eventoId}` as any);
+        return;
+      }
+
+      const asistencias = data.asistencias || [];
+
+      const yaEstaInteresado = asistencias.some((asistencia: any) => {
+        const evento = asistencia.eventoId;
+
+        if (!evento) {
+          return false;
+        }
+
+        if (typeof evento === "string") {
+          return evento === eventoId;
+        }
+
+        return evento._id === eventoId;
+      });
+
+      if (yaEstaInteresado) {
+        router.push(`/event-people/${eventoId}` as any);
+      } else {
+        router.push(`/event-detail/${eventoId}` as any);
+      }
+    } catch (error) {
+      console.log("Error verificando asistencia:", error);
+      router.push(`/event-detail/${eventoId}` as any);
+    }
   };
 
   const irAExplore = () => {
@@ -166,7 +218,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-       <Logo size="large" centered={false} showText={true} />
+        <Logo size="large" centered={true} showText={false} />
 
         <Text style={styles.title}>¿Qué te pinta hoy?</Text>
 
@@ -312,25 +364,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingBottom: 140,
   },
-  logoRow: {
-  flexDirection: "row",
-  marginBottom: 22,
-  alignItems: "center",
-  alignSelf: "flex-start",
-},
-
-logo: {
-  width: 48,
-  height: 48,
-  marginRight: 10,
-},
-
-logoText: {
-  fontSize: 30,
-  fontWeight: "800",
-  color: "#332047",
-  letterSpacing: 0.5,
-},
+  logo: {
+    width: 76,
+    height: 46,
+    marginBottom: 22,
+    alignSelf: "center",
+  },
   title: {
     fontSize: 30,
     fontWeight: "700",
