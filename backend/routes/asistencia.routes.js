@@ -3,17 +3,12 @@ const router = express.Router();
 
 const Asistencia = require("../models/Asistencia");
 
-// Crear asistencia
+// Registrar asistencia a un evento
 router.post("/", async (req, res) => {
   try {
     const { usuarioId, eventoId, estado } = req.body;
 
-    const asistencia = new Asistencia({
-      usuarioId,
-      eventoId,
-      estado,
-    });
-
+    const asistencia = new Asistencia({ usuarioId, eventoId, estado });
     await asistencia.save();
 
     res.json({
@@ -28,7 +23,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Obtener todas
+// Obtener todas las asistencias
 router.get("/", async (req, res) => {
   try {
     const asistencias = await Asistencia.find()
@@ -42,6 +37,87 @@ router.get("/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       error: "Error al obtener asistencias",
+      detalle: error.message,
+    });
+  }
+});
+
+// Obtener asistencias por usuario
+router.get("/usuario/:usuarioId", async (req, res) => {
+  try {
+    const asistencias = await Asistencia.find({ usuarioId: req.params.usuarioId })
+      .populate("eventoId", "nombre fecha categoria");
+
+    res.json({
+      message: "Asistencias del usuario obtenidas correctamente",
+      asistencias,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al obtener asistencias del usuario",
+      detalle: error.message,
+    });
+  }
+});
+
+// Obtener asistencias por evento
+router.get("/evento/:eventoId", async (req, res) => {
+  try {
+    const asistencias = await Asistencia.find({ eventoId: req.params.eventoId })
+      .populate("usuarioId", "nombre email");
+
+    res.json({
+      message: "Asistencias del evento obtenidas correctamente",
+      asistencias,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al obtener asistencias del evento",
+      detalle: error.message,
+    });
+  }
+});
+
+// Actualizar estado de asistencia
+router.put("/:id", async (req, res) => {
+  try {
+    const asistencia = await Asistencia.findByIdAndUpdate(
+      req.params.id,
+      { estado: req.body.estado },
+      { new: true }
+    );
+
+    if (!asistencia) {
+      return res.status(404).json({ error: "Asistencia no encontrada" });
+    }
+
+    res.json({
+      message: "Estado de asistencia actualizado correctamente",
+      asistencia,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al actualizar asistencia",
+      detalle: error.message,
+    });
+  }
+});
+
+// Eliminar asistencia
+router.delete("/:id", async (req, res) => {
+  try {
+    const asistencia = await Asistencia.findByIdAndDelete(req.params.id);
+
+    if (!asistencia) {
+      return res.status(404).json({ error: "Asistencia no encontrada" });
+    }
+
+    res.json({
+      message: "Asistencia eliminada correctamente",
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al eliminar asistencia",
       detalle: error.message,
     });
   }
