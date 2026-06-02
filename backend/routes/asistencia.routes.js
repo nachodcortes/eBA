@@ -72,8 +72,12 @@ router.get("/", async (req, res) => {
 // Obtener asistencias por usuario
 router.get("/usuario/:usuarioId", async (req, res) => {
   try {
-    const asistencias = await Asistencia.find({ usuarioId: req.params.usuarioId })
-      .populate("eventoId", "nombre fecha categoria");
+    const asistencias = await Asistencia.find({
+      usuarioId: req.params.usuarioId,
+    }).populate(
+      "eventoId",
+      "nombre descripcion fecha categoria imagen ubicacion organizador esPromocionado"
+    );
 
     res.json({
       message: "Asistencias del usuario obtenidas correctamente",
