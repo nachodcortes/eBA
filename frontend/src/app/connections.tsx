@@ -1,67 +1,182 @@
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
 } from "react-native";
-import { MessageCircle, UserPlus, Clock, Check } from "lucide-react-native";
+import {
+  Clock,
+  Check,
+  X,
+  Users,
+  MessageCircle,
+} from "lucide-react-native";
+import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { API_URL } from "../config/api";
 import BottomNav from "../components/BottomNav";
+import Logo from "../components/Logo";
+import LoadingScreen from "../components/LoadingScreen";
+import EmptyState from "../components/EmptyState";
+import UserAvatar from "../components/UserAvatar";
+import SectionHeader from "../components/SectionHeader";
 
-const conexiones = [
-  {
-    id: "1",
-    nombre: "Valentina Martínez",
-    edad: 24,
-    ubicacion: "Monte Grande",
-    evento: "FUTTURA",
-    estado: "aceptada",
-    intereses: ["techno", "festivales"],
-    foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300",
-  },
-  {
-    id: "2",
-    nombre: "Facundo Castillo",
-    edad: 20,
-    ubicacion: "Olivos",
-    evento: "Lollapalooza Argentina 2026",
-    estado: "aceptada",
-    intereses: ["recitales", "rock"],
-    foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300",
-  },
-  {
-    id: "3",
-    nombre: "Luz Barrientos",
-    edad: 22,
-    ubicacion: "Villa Urquiza",
-    evento: "Techno Night BA",
-    estado: "pendiente",
-    intereses: ["techno", "fiesta"],
-    foto: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300",
-  },
-];
+import { Usuario } from "../types/Usuario";
 
-const solicitudes = [
-  {
-    id: "4",
-    nombre: "Sofía Rubachin",
-    edad: 22,
-    ubicacion: "Almagro",
-    evento: "Teatro Gran Rex",
-    foto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300",
-  },
-];
+type Conexion = {
+  _id: string;
+  usuario1: Usuario;
+  usuario2: Usuario;
+};
+
+type Solicitud = {
+  _id: string;
+  usuariosolicitante: Usuario;
+  usuarioreceptor: Usuario;
+  estado: string;
+};
 
 export default function ConnectionsScreen() {
-  const conexionesAceptadas = conexiones.filter(
-    (conexion) => conexion.estado === "aceptada"
-  );
+  const [usuarioActualId, setUsuarioActualId] = useState<string | null>(null);
+  const [conexiones, setConexiones] = useState<Conexion[]>([]);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const conexionesPendientes = conexiones.filter(
-    (conexion) => conexion.estado === "pendiente"
-  );
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    try {
+      setLoading(true);
+
+      const usuarioGuardado = await AsyncStorage.getItem("usuario");
+
+      if (!usuarioGuardado) {
+        router.replace("/login" as any);
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioGuardado);
+      const idUsuario = usuario.id || usuario._id;
+
+      if (!idUsuario) {
+        alert("No se encontró el usuario logueado.");
+        router.replace("/login" as any);
+        return;
+      }
+
+      setUsuarioActualId(idUsuario);
+
+      const responseConexiones = await fetch(
+        `${API_URL}/api/conexiones/usuario/${idUsuario}`
+      );
+
+      const dataConexiones = await responseConexiones.json();
+
+      if (!responseConexiones.ok) {
+        setConexiones([]);
+      } else {
+        setConexiones(Array.isArray(dataConexiones) ? dataConexiones : []);
+      }
+
+      const responseSolicitudes = await fetch(
+        `${API_URL}/api/solicitudes-conexion/usuario/${idUsuario}`
+      );
+
+      const dataSolicitudes = await responseSolicitudes.json();
+
+      if (!responseSolicitudes.ok) {
+        setSolicitudes([]);
+      } else {
+        setSolicitudes(dataSolicitudes.solicitudes || []);
+      }
+    } catch (error) {
+      console.log("Error al cargar conexiones:", error);
+      alert("No se pudo conectar con el servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const aceptarSolicitud = async (solicitudId: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/solicitudes-conexion/${solicitudId}/aceptar`,
+        {
+          method: "PUT",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.mensaje || "No se pudo aceptar la solicitud.");
+        return;
+      }
+
+      await cargarDatos();
+    } catch (error) {
+      console.log("Error al aceptar solicitud:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const rechazarSolicitud = async (solicitudId: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/solicitudes-conexion/${solicitudId}/rechazar`,
+        {
+          method: "PUT",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.mensaje || "No se pudo rechazar la solicitud.");
+        return;
+      }
+
+      await cargarDatos();
+    } catch (error) {
+      console.log("Error al rechazar solicitud:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const obtenerIdUsuario = (usuario?: Usuario) => {
+    return usuario?._id || usuario?.id;
+  };
+
+  const obtenerOtroUsuario = (conexion: Conexion) => {
+    const usuario1Id = obtenerIdUsuario(conexion.usuario1);
+
+    if (usuario1Id === usuarioActualId) {
+      return conexion.usuario2;
+    }
+
+    return conexion.usuario1;
+  };
+
+  const obtenerUbicacion = (usuario?: Usuario) => {
+    return usuario?.ubicacionAproximada?.ciudad || "Ubicación no cargada";
+  };
+
+  const obtenerIntereses = (usuario?: Usuario) => {
+    if (usuario?.intereses && usuario.intereses.length > 0) {
+      return usuario.intereses.slice(0, 2);
+    }
+
+    return ["eventos"];
+  };
+
+  if (loading) {
+    return <LoadingScreen text="Cargando conexiones..." />;
+  }
 
   return (
     <View style={styles.screen}>
@@ -69,6 +184,8 @@ export default function ConnectionsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
+        <Logo size="medium" />
+
         <Text style={styles.title}>Conexiones</Text>
 
         <Text style={styles.subtitle}>
@@ -77,15 +194,8 @@ export default function ConnectionsScreen() {
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>{conexionesAceptadas.length}</Text>
+            <Text style={styles.summaryNumber}>{conexiones.length}</Text>
             <Text style={styles.summaryLabel}>Conectadas</Text>
-          </View>
-
-          <View style={styles.summaryDivider} />
-
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>{conexionesPendientes.length}</Text>
-            <Text style={styles.summaryLabel}>Pendientes</Text>
           </View>
 
           <View style={styles.summaryDivider} />
@@ -94,114 +204,122 @@ export default function ConnectionsScreen() {
             <Text style={styles.summaryNumber}>{solicitudes.length}</Text>
             <Text style={styles.summaryLabel}>Solicitudes</Text>
           </View>
-        </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Solicitudes recibidas</Text>
-          <Text style={styles.seeAll}>Ver todas</Text>
-        </View>
+          <View style={styles.summaryDivider} />
 
-        {solicitudes.map((solicitud) => (
-          <View key={solicitud.id} style={styles.requestCard}>
-            <Image source={{ uri: solicitud.foto }} style={styles.avatar} />
-
-            <View style={styles.userInfo}>
-              <Text style={styles.name}>{solicitud.nombre}</Text>
-              <Text style={styles.detail}>
-                {solicitud.ubicacion}, {solicitud.edad} años
-              </Text>
-              <Text style={styles.eventText}>
-                Quiere conectar por {solicitud.evento}
-              </Text>
-            </View>
-
-            <TouchableOpacity style={styles.acceptButton} activeOpacity={0.85}>
-              <Check size={19} color="#FFFFFF" />
-            </TouchableOpacity>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNumber}>
+              {conexiones.length + solicitudes.length}
+            </Text>
+            <Text style={styles.summaryLabel}>Total</Text>
           </View>
-        ))}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Mis conexiones</Text>
-          <Text style={styles.seeAll}>Ver todas</Text>
         </View>
 
-        {conexionesAceptadas.map((conexion) => (
-          <View key={conexion.id} style={styles.connectionCard}>
-            <Image source={{ uri: conexion.foto }} style={styles.avatar} />
+        <SectionHeader title="Solicitudes recibidas" />
 
-            <View style={styles.userInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{conexion.nombre}</Text>
-
-                <View style={styles.statusAccepted}>
-                  <Text style={styles.statusAcceptedText}>Activa</Text>
-                </View>
-              </View>
-
-              <Text style={styles.detail}>
-                {conexion.ubicacion}, {conexion.edad} años
-              </Text>
-
-              <Text style={styles.eventText}>
-                Conectaron por {conexion.evento}
-              </Text>
-
-              <View style={styles.chipsRow}>
-                {conexion.intereses.map((interes) => (
-                  <View key={interes} style={styles.chip}>
-                    <Text style={styles.chipText}>{interes}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.messageButton} activeOpacity={0.85}>
-              <MessageCircle size={20} color="#7528F0" />
-            </TouchableOpacity>
-          </View>
-        ))}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Pendientes</Text>
-        </View>
-
-        {conexionesPendientes.map((conexion) => (
-          <View key={conexion.id} style={styles.pendingCard}>
-            <Image source={{ uri: conexion.foto }} style={styles.avatar} />
-
-            <View style={styles.userInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{conexion.nombre}</Text>
-
-                <View style={styles.statusPending}>
-                  <Clock size={12} color="#8B35E8" />
-                  <Text style={styles.statusPendingText}>Pendiente</Text>
-                </View>
-              </View>
-
-              <Text style={styles.detail}>
-                {conexion.ubicacion}, {conexion.edad} años
-              </Text>
-
-              <Text style={styles.eventText}>
-                Solicitud enviada por {conexion.evento}
-              </Text>
-            </View>
-          </View>
-        ))}
-
-        <View style={styles.emptyInfoCard}>
-          <UserPlus size={26} color="#7528F0" />
-
-          <View style={styles.emptyInfoTextBox}>
-            <Text style={styles.emptyInfoTitle}>Conectá desde eventos</Text>
-            <Text style={styles.emptyInfoText}>
-              Cuando veas personas interesadas en un evento, podés enviarles una
-              solicitud para ir juntos.
+        {solicitudes.length === 0 ? (
+          <View style={styles.emptyMiniCard}>
+            <Clock size={22} color="#8B35E8" />
+            <Text style={styles.emptyMiniText}>
+              No tenés solicitudes pendientes.
             </Text>
           </View>
-        </View>
+        ) : (
+          solicitudes.map((solicitud) => {
+            const usuarioSolicitante = solicitud.usuariosolicitante;
+
+            return (
+              <View key={solicitud._id} style={styles.requestCard}>
+                <UserAvatar usuario={usuarioSolicitante} size={54} />
+
+                <View style={styles.userInfo}>
+                  <Text style={styles.name}>
+                    {usuarioSolicitante?.nombre || "Usuario"}
+                  </Text>
+
+                  <Text style={styles.detail}>
+                    {obtenerUbicacion(usuarioSolicitante)}
+                  </Text>
+
+                  <Text style={styles.eventText}>Quiere conectar con vos</Text>
+                </View>
+
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.acceptButton}
+                    activeOpacity={0.85}
+                    onPress={() => aceptarSolicitud(solicitud._id)}
+                  >
+                    <Check size={19} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.rejectButton}
+                    activeOpacity={0.85}
+                    onPress={() => rechazarSolicitud(solicitud._id)}
+                  >
+                    <X size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+
+        <SectionHeader title="Mis conexiones" />
+
+        {conexiones.length === 0 ? (
+          <EmptyState
+            icon={<Users size={48} color="#B484F2" />}
+            title="Todavía no tenés conexiones"
+            text="Cuando aceptes solicitudes o conectes con personas interesadas en eventos, van a aparecer acá."
+            buttonText="Explorar eventos"
+            onPress={() => router.push("/explore" as any)}
+          />
+        ) : (
+          conexiones.map((conexion) => {
+            const usuarioConexion = obtenerOtroUsuario(conexion);
+            const intereses = obtenerIntereses(usuarioConexion);
+
+            return (
+              <View key={conexion._id} style={styles.connectionCard}>
+                <UserAvatar usuario={usuarioConexion} size={54} />
+
+                <View style={styles.userInfo}>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>
+                      {usuarioConexion?.nombre || "Usuario"}
+                    </Text>
+
+                    <View style={styles.statusAccepted}>
+                      <Text style={styles.statusAcceptedText}>Activa</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.detail}>
+                    {obtenerUbicacion(usuarioConexion)}
+                  </Text>
+
+                  <Text style={styles.eventText}>
+                    Ya pueden coordinar para ir a eventos
+                  </Text>
+
+                  <View style={styles.chipsRow}>
+                    {intereses.map((interes) => (
+                      <View key={interes} style={styles.chip}>
+                        <Text style={styles.chipText}>{interes}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.messageButton} activeOpacity={0.85}>
+                  <MessageCircle size={20} color="#7528F0" />
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
       </ScrollView>
 
       <BottomNav />
@@ -241,7 +359,6 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
-    boxShadow: "0px 8px 18px rgba(0,0,0,0.06)" as any,
   },
   summaryItem: {
     flex: 1,
@@ -263,22 +380,21 @@ const styles = StyleSheet.create({
     height: 38,
     backgroundColor: "#EEEAF7",
   },
-  sectionHeader: {
+  emptyMiniCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
-    marginTop: 4,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
-  sectionTitle: {
-    fontSize: 19,
-    fontWeight: "900",
-    color: "#2D2934",
-  },
-  seeAll: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#7528F0",
+  emptyMiniText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#8D8A99",
+    fontWeight: "700",
   },
   requestCard: {
     backgroundColor: "#FFFFFF",
@@ -289,7 +405,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
-    boxShadow: "0px 8px 16px rgba(117,40,240,0.12)" as any,
   },
   connectionCard: {
     backgroundColor: "#FFFFFF",
@@ -300,23 +415,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
-    boxShadow: "0px 8px 16px rgba(0,0,0,0.07)" as any,
-  },
-  pendingCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "#E8DDFF",
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    marginRight: 14,
   },
   userInfo: {
     flex: 1,
@@ -343,6 +441,39 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 7,
   },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  acceptButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#8B35E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  rejectButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFF1F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusAccepted: {
+    backgroundColor: "#ECFDF3",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  statusAcceptedText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#12A150",
+  },
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -360,15 +491,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#7528F0",
   },
-  acceptButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: "#8B35E8",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 10,
-  },
   messageButton: {
     width: 44,
     height: 44,
@@ -377,55 +499,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 10,
-  },
-  statusAccepted: {
-    backgroundColor: "#ECFDF3",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  statusAcceptedText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#12A150",
-  },
-  statusPending: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F1ECFF",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  statusPendingText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#8B35E8",
-    marginLeft: 4,
-  },
-  emptyInfoCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
-    marginTop: 8,
-  },
-  emptyInfoTextBox: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  emptyInfoTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#332047",
-    marginBottom: 5,
-  },
-  emptyInfoText: {
-    fontSize: 13,
-    color: "#8D8A99",
-    lineHeight: 19,
   },
 });
