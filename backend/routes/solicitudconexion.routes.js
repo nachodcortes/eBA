@@ -149,5 +149,32 @@ router.put("/:id/rechazar", async (req, res) => {
     });
   }
 });
+/*
+GET /api/solicitudes/usuario/:usuarioId
+Obtener solicitudes pendientes recibidas por un usuario
+*/
+router.get("/usuario/:usuarioId", async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+
+    const solicitudes = await SolicitudConexion.find({
+      usuarioreceptor: usuarioId,
+      estado: "pendiente",
+    })
+      .populate("usuariosolicitante")
+      .populate("usuarioreceptor");
+
+    res.json({
+      mensaje: "Solicitudes obtenidas correctamente",
+      solicitudes,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      mensaje: "Error al obtener solicitudes",
+    });
+  }
+});
 
 module.exports = router;
