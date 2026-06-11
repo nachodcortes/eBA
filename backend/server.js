@@ -14,6 +14,7 @@ const publicacionRoutes = require("./routes/publicacion.routes");
 const comentarioRoutes = require("./routes/comentario.routes");
 const chatRoutes = require("./routes/chat.routes");
 const mensajeRoutes = require("./routes/mensaje.routes");
+const favoritoRoutes = require("./routes/favorito.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,6 +82,7 @@ app.use("/api/publicaciones", publicacionRoutes);
 app.use("/api/comentarios", comentarioRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/mensajes", mensajeRoutes);
+app.use("/api/favoritos", favoritoRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
