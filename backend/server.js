@@ -15,9 +15,10 @@ const comentarioRoutes = require("./routes/comentario.routes");
 const chatRoutes = require("./routes/chat.routes");
 const mensajeRoutes = require("./routes/mensaje.routes");
 const favoritoRoutes = require("./routes/favorito.routes");
-const reporteRoutes = require("./routes/reporte.routes");
+const reporteRoutes = require("./routes/reportes.routes");
 const logActividadRoutes = require("./routes/logActividad.routes");
 const planPromocionRoutes = require("./routes/planPromocion.routes");
+const notificacionRoutes = require("./routes/notificacion.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -89,6 +90,8 @@ app.use("/api/reportes", reporteRoutes);
 app.use("/api/favoritos", favoritoRoutes);
 app.use("/api/logs-actividad", logActividadRoutes);
 app.use("/api/planes-promocion", planPromocionRoutes);
+app.use("/api/notificaciones", notificacionRoutes);
+
 
 app.use((req, res) => {
   res.status(404).json({
