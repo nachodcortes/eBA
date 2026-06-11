@@ -17,6 +17,7 @@ const mensajeRoutes = require("./routes/mensaje.routes");
 const favoritoRoutes = require("./routes/favorito.routes");
 const reporteRoutes = require("./routes/reporte.routes");
 const logActividadRoutes = require("./routes/logActividad.routes");
+const planPromocionRoutes = require("./routes/planPromocion.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,6 +88,7 @@ app.use("/api/mensajes", mensajeRoutes);
 app.use("/api/reportes", reporteRoutes);
 app.use("/api/favoritos", favoritoRoutes);
 app.use("/api/logs-actividad", logActividadRoutes);
+app.use("/api/planes-promocion", planPromocionRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
