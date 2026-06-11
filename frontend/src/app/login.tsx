@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { router } from "expo-router";
-import { EyeOff } from "lucide-react-native";
+import { EyeOff, Eye } from "lucide-react-native";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Logo from "@/components/Logo";
@@ -16,6 +16,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [contrasenia, setContrasenia] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -63,7 +64,7 @@ export default function LoginScreen() {
       if (response.status === 403) {
         alert(
           data.error ||
-            "Tenés que verificar tu email antes de iniciar sesión."
+          "Tenés que verificar tu email antes de iniciar sesión."
         );
 
         router.replace({
@@ -121,15 +122,25 @@ export default function LoginScreen() {
           <TextInput
             placeholder="Contraseña"
             placeholderTextColor="#A8A5B3"
-            secureTextEntry
+            secureTextEntry={!mostrarContrasenia}
             style={styles.passwordInput}
             value={contrasenia}
             onChangeText={setContrasenia}
           />
-          <EyeOff size={18} color="#A8A5B3" />
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setMostrarContrasenia(!mostrarContrasenia)}
+          >
+            {mostrarContrasenia ? (
+              <Eye size={18} color="#A8A5B3" />
+            ) : (
+              <EyeOff size={18} color="#A8A5B3" />
+            )}
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/forgot-password" as any)}>
           <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
 
