@@ -405,6 +405,63 @@ router.post("/cambiar-contrasenia", async (req, res) => {
   }
 });
 
+// POST /api/usuarios/reenviar-codigo-verificacion
+router.post("/reenviar-codigo-verificacion", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: "El email es obligatorio",
+      });
+    }
+
+    const usuario = await Usuario.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
+    if (!usuario) {
+      return res.status(404).json({
+        error: "No existe un usuario con ese email",
+      });
+    }
+
+    if (usuario.emailVerificado) {
+      return res.status(400).json({
+        error: "Este email ya está verificado",
+      });
+    }
+
+    if (!usuario.nombreUsuario) {
+      usuario.nombreUsuario = await generarNombreUsuarioUnico(usuario.nombre);
+    }
+
+    const codigo = generarCodigo();
+
+    usuario.codigoVerificacion = codigo;
+    usuario.codigoVerificacionExpira = new Date(Date.now() + 15 * 60 * 1000);
+
+    await usuario.save();
+
+    console.log("Nuevo código de verificación generado:", codigo);
+
+    await enviarEmail({
+      para: usuario.email,
+      asunto: "Nuevo código de verificación - eBA",
+      texto: `Hola ${usuario.nombre}, tu nuevo código de verificación para eBA es: ${codigo}. Este código vence en 15 minutos.`,
+    });
+
+    return res.json({
+      message: "Código reenviado correctamente. Revisá tu email.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error al reenviar código de verificación",
+      detalle: error.message,
+    });
+  }
+});
+
 // PUT /api/usuarios/:id
 router.put("/:id", async (req, res) => {
   try {
@@ -598,4 +655,22 @@ router.post("/auth/google/token", async (req, res) => {
   }
 });
 
+router.get("/test-email/enviar", async (req, res) => {
+  try {
+    await enviarEmail({
+      para: process.env.EMAIL_USER,
+      asunto: "Test email eBA",
+      texto: "Si llegó este mail, Nodemailer funciona correctamente.",
+    });
+
+    return res.json({
+      message: "Email de prueba enviado correctamente",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "No se pudo enviar el email de prueba",
+      detalle: error.message,
+    });
+  }
+});
 module.exports = router;

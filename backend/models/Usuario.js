@@ -57,7 +57,6 @@ const usuarioSchema = new mongoose.Schema(
     },
     nombreUsuario: {
       type: String,
-      required: true,
       unique: true,
       lowercase: true,
       trim: true,
