@@ -9,12 +9,21 @@ const transporter = nodemailer.createTransport({
 });
 
 const enviarEmail = async ({ para, asunto, texto }) => {
-  await transporter.sendMail({
-    from: `"eBA" <${process.env.EMAIL_USER}>`,
-    to: para,
-    subject: asunto,
-    text: texto,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: `"eBA" <${process.env.EMAIL_USER}>`,
+      to: para,
+      subject: asunto,
+      text: texto,
+    });
+
+    console.log("Email enviado correctamente:", info.messageId);
+    return info;
+  } catch (error) {
+    console.log("ERROR ENVIANDO EMAIL:");
+    console.log(error.message);
+    throw error;
+  }
 };
 
 module.exports = enviarEmail;

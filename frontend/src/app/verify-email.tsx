@@ -21,6 +21,7 @@ export default function VerifyEmailScreen() {
   const [email, setEmail] = useState(emailParam);
   const [codigo, setCodigo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
 
   const handleVerifyEmail = async () => {
     if (!email.trim()) {
@@ -54,6 +55,7 @@ export default function VerifyEmailScreen() {
 
       const data = await response.json();
 
+      console.log("Status verificar email:", response.status);
       console.log("Respuesta verificar email:", data);
 
       if (!response.ok) {
@@ -62,7 +64,6 @@ export default function VerifyEmailScreen() {
       }
 
       alert(data.message || "Email verificado correctamente.");
-
       router.replace("/login" as any);
     } catch (error) {
       console.log("Error al verificar email:", error);
@@ -71,6 +72,49 @@ export default function VerifyEmailScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const reenviarCodigo = async () => {
+    if (!email.trim()) {
+      alert("Ingresá tu email para reenviar el código.");
+      return;
+    }
+
+    try {
+      setReenviando(true);
+
+      const response = await fetch(
+        `${API_URL}/api/usuarios/reenviar-codigo-verificacion`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: email.trim().toLowerCase(),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Status reenviar código:", response.status);
+      console.log("Respuesta reenviar código:", data);
+
+      if (!response.ok) {
+        alert(data.error || data.message || "No se pudo reenviar el código.");
+        return;
+      }
+
+      alert(data.message || "Código reenviado correctamente.");
+    } catch (error) {
+      console.log("Error al reenviar código:", error);
+      alert(
+        "No se pudo conectar con el servidor. Revisá que el backend esté prendido."
+      );
+    } finally {
+      setReenviando(false);
     }
   };
 
@@ -132,10 +176,21 @@ export default function VerifyEmailScreen() {
           style={[styles.primaryButton, loading && styles.disabledButton]}
           activeOpacity={0.85}
           onPress={handleVerifyEmail}
-          disabled={loading}
+          disabled={loading || reenviando}
         >
           <Text style={styles.primaryButtonText}>
             {loading ? "Verificando..." : "Verificar email"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.secondaryButton, reenviando && styles.disabledButton]}
+          activeOpacity={0.85}
+          onPress={reenviarCodigo}
+          disabled={loading || reenviando}
+        >
+          <Text style={styles.secondaryButtonText}>
+            {reenviando ? "Reenviando..." : "Reenviar código"}
           </Text>
         </TouchableOpacity>
 
@@ -257,6 +312,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
+    marginBottom: 12,
+  },
+  secondaryButton: {
+    width: "100%",
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#7528F0",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 18,
   },
   disabledButton: {
@@ -265,6 +331,11 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
+    fontWeight: "800",
+  },
+  secondaryButtonText: {
+    color: "#7528F0",
+    fontSize: 15,
     fontWeight: "800",
   },
   loginRow: {
