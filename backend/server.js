@@ -106,6 +106,9 @@ app.use("/api/promociones-evento", promocionEventoRoutes);
 app.use("/api/intereses", interesRoutes);
 app.use("/api/bloqueos", bloqueoRoutes);
 
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end();
+});
 app.use((req, res) => {
   res.status(404).json({
     error: "Ruta no encontrada",
