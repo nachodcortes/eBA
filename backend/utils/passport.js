@@ -33,6 +33,7 @@ passport.use(
         usuario = new Usuario({
           googleId: profile.id,
           nombre: profile.displayName,
+          nombreUsuario: profile.emails[0].value.split("@")[0].toLowerCase(),
           email: profile.emails[0].value,
           fotoPerfil: profile.photos[0]?.value,
           emailVerificado: true, // Google garantiza el email
