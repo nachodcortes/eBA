@@ -69,27 +69,27 @@ const armarUsuarioRespuesta = (usuario) => {
   };
 };
 // GET /api/usuarios/auth/google
-router.get(
-  "/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
+//router.get(
+  //"/auth/google",
+  //passport.authenticate("google", { scope: ["profile", "email"] })
+//);
 
 // GET /api/usuarios/auth/google/callback
-router.get(
-  "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login", session: false }),
-  async (req, res) => {
-    try {
-      const usuario = req.user;
+//router.get(
+  //"/auth/google/callback",
+  //passport.authenticate("google", { failureRedirect: "/login", session: false }),
+  //async (req, res) => {
+    //try {
+      //const usuario = req.user;
 
       // Generar nombreUsuario si no tiene
-      if (!usuario.nombreUsuario) {
-        usuario.nombreUsuario = await generarNombreUsuarioUnico(usuario.nombre);
-        await usuario.save();
-      }
+     //if (!usuario.nombreUsuario) {
+     //   usuario.nombreUsuario = await generarNombreUsuarioUnico(usuario.nombre);
+       // await usuario.save();
+    //  }
 
-      return res.json({
-        message: "Login con Google correcto",
+     //return res.json({
+      /*  message: "Login con Google correcto",
         usuario: armarUsuarioRespuesta(usuario),
       });
     } catch (error) {
@@ -100,7 +100,7 @@ router.get(
     }
   }
 );
-
+*/
 
 // GET /api/usuarios
 router.get("/", async (req, res) => {
