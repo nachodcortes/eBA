@@ -8,6 +8,7 @@
     "scheme": "eba",
     "userInterfaceStyle": "automatic",
     "ios": {
+       "bundleIdentifier": "com.nexar.eba",
       "icon": "./assets/expo.icon"
     },
     "android": {

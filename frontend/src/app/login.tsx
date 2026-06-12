@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,12 +11,60 @@ import { EyeOff, Eye } from "lucide-react-native";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Logo from "@/components/Logo";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+// 1. IMPORTANTE: Importa AuthSession para manejar la redirección
+import * as AuthSession from "expo-auth-session"; 
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [contrasenia, setContrasenia] = useState("");
   const [loading, setLoading] = useState(false);
   const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
+
+  // ── Google Auth Corregido ──────────────────────────────────────────
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    // 2. Agrega esto para forzar el esquema "eba" de tu app.json
+    redirectUri: AuthSession.makeRedirectUri({
+      scheme: "eba",
+    }),
+    clientId: "59399847433-4h2t4qqc99tnbqo2vtbvf9tveoju6cnp.apps.googleusercontent.com",
+  });
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const token = response.authentication?.accessToken;
+      if (token) handleLoginGoogle(token);
+    }
+  }, [response]);
+
+  const handleLoginGoogle = async (token: string) => {
+    try {
+      setLoading(true);
+
+      const res = await fetch(`${API_URL}/api/usuarios/auth/google/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || "Error al iniciar sesión con Google.");
+        return;
+      }
+
+      await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
+      router.replace("/home" as any);
+    } catch (error) {
+      alert("No se pudo conectar con el servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -99,7 +147,7 @@ export default function LoginScreen() {
     }
   };
 
-  return (
+ return (
     <View style={styles.screen}>
       <View style={styles.content}>
         <Logo size="large" centered={true} showText={true} />
@@ -127,6 +175,7 @@ export default function LoginScreen() {
             value={contrasenia}
             onChangeText={setContrasenia}
           />
+
 
           <TouchableOpacity
             activeOpacity={0.8}
@@ -157,10 +206,7 @@ export default function LoginScreen() {
 
         <View style={styles.registerRow}>
           <Text style={styles.smallText}>¿No tenés cuenta? </Text>
-
-          <TouchableOpacity
-            onPress={() => router.push("/register-interests" as any)}
-          >
+          <TouchableOpacity onPress={() => router.push("/register-interests" as any)}>
             <Text style={styles.registerLink}>Registrate</Text>
           </TouchableOpacity>
         </View>
@@ -170,7 +216,12 @@ export default function LoginScreen() {
         <Text style={styles.continueText}>O continuá con...</Text>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.socialButton}>
+          {/* ── Botón Google ── */}
+          <TouchableOpacity
+            style={[styles.socialButton, (!request || loading) && styles.disabledButton]}
+            onPress={() => promptAsync()}
+            disabled={!request || loading}
+          >
             <Text style={styles.socialText}>Google</Text>
           </TouchableOpacity>
 

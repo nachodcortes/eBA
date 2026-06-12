@@ -1,4 +1,5 @@
 const express = require("express");
+const passport = require("../utils/passport");
 const Usuario = require("../models/Usuario");
 const enviarEmail = require("../utils/email");
 
@@ -68,6 +69,8 @@ const armarUsuarioRespuesta = (usuario) => {
     esOrganizador: usuario.esOrganizador,
   };
 };
+router.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+
 // GET /api/usuarios/auth/google
 router.get(
   "/auth/google",

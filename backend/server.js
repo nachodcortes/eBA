@@ -25,6 +25,7 @@ const passport = require("./utils/passport");
 const bloqueoRoutes = require("./routes/bloqueo.routes");
 
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -105,6 +106,8 @@ app.use("/api/pagos", pagoRoutes);
 app.use("/api/promociones-evento", promocionEventoRoutes);
 app.use("/api/intereses", interesRoutes);
 app.use("/api/bloqueos", bloqueoRoutes);
+app.use(passport.initialize());
+
 
 app.use((req, res) => {
   res.status(404).json({
