@@ -68,6 +68,39 @@ const armarUsuarioRespuesta = (usuario) => {
     esOrganizador: usuario.esOrganizador,
   };
 };
+// GET /api/usuarios/auth/google
+router.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+// GET /api/usuarios/auth/google/callback
+router.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login", session: false }),
+  async (req, res) => {
+    try {
+      const usuario = req.user;
+
+      // Generar nombreUsuario si no tiene
+      if (!usuario.nombreUsuario) {
+        usuario.nombreUsuario = await generarNombreUsuarioUnico(usuario.nombre);
+        await usuario.save();
+      }
+
+      return res.json({
+        message: "Login con Google correcto",
+        usuario: armarUsuarioRespuesta(usuario),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error: "Error al iniciar sesión con Google",
+        detalle: error.message,
+      });
+    }
+  }
+);
+
 
 // GET /api/usuarios
 router.get("/", async (req, res) => {
