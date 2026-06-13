@@ -13,9 +13,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Logo from "@/components/Logo";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-// 1. IMPORTANTE: Importa AuthSession para manejar la redirección
 import * as AuthSession from "expo-auth-session"; 
 
+import { GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI } from "@/utils/googleAuth";
+
+
+console.log("URI:", AuthSession.makeRedirectUri({ scheme: "eba" }));
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
@@ -24,47 +27,53 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
 
-  // ── Google Auth Corregido ──────────────────────────────────────────
   const [request, response, promptAsync] = Google.useAuthRequest({
-    // 2. Agrega esto para forzar el esquema "eba" de tu app.json
-    redirectUri: AuthSession.makeRedirectUri({
-      scheme: "eba",
-    }),
-    clientId: "59399847433-4h2t4qqc99tnbqo2vtbvf9tveoju6cnp.apps.googleusercontent.com",
-  });
+  webClientId: GOOGLE_CLIENT_ID,
+  redirectUri: AuthSession.makeRedirectUri(), 
+  
+});
 
-  useEffect(() => {
-    if (response?.type === "success") {
-      const token = response.authentication?.accessToken;
-      if (token) handleLoginGoogle(token);
+useEffect(() => {
+  console.log("Response type:", response?.type);
+  console.log("Response completo:", JSON.stringify(response));
+  if (response?.type === "success") {
+    const token = response.authentication?.accessToken;
+    console.log("Token a enviar:", token ? token.substring(0, 30) + "..." : "VACÍO");
+    if (token) handleLoginGoogle(token);
+  }
+}, [response]);
+
+
+const handleLoginGoogle = async (token: string) => {
+  try {
+    setLoading(true);
+    const res = await fetch(`${API_URL}/api/usuarios/auth/google/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Error al iniciar sesión con Google.");
+      return;
     }
-  }, [response]);
-
-  const handleLoginGoogle = async (token: string) => {
-    try {
-      setLoading(true);
-
-      const res = await fetch(`${API_URL}/api/usuarios/auth/google/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "Error al iniciar sesión con Google.");
-        return;
-      }
-
-      await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
+    await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
+    
+    if (data.esNuevo) {
+      // Redirigí a seleccionar intereses primero
+      router.replace({
+        pathname: "/register-interests-google",
+        params: { usuarioId: data.usuario.id }
+      } as any);
+    } else {
       router.replace("/home" as any);
-    } catch (error) {
-      alert("No se pudo conectar con el servidor.");
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    alert("No se pudo conectar con el servidor.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -218,12 +227,12 @@ export default function LoginScreen() {
         <View style={styles.socialRow}>
           {/* ── Botón Google ── */}
           <TouchableOpacity
-            style={[styles.socialButton, (!request || loading) && styles.disabledButton]}
-            onPress={() => promptAsync()}
-            disabled={!request || loading}
-          >
-            <Text style={styles.socialText}>Google</Text>
-          </TouchableOpacity>
+              style={[styles.socialButton, (!request || loading) && styles.disabledButton]}
+              onPress={() => promptAsync()}
+              disabled={!request || loading}
+            >
+              <Text style={styles.socialText}>Google</Text>
+            </TouchableOpacity>
 
           <TouchableOpacity style={styles.socialButton}>
             <Text style={styles.socialText}>Apple</Text>

@@ -14,7 +14,7 @@ const usuarioSchema = new mongoose.Schema(
     },
     contrasenia: {
       type: String,
-      required: true,
+      required: false,
     },
     edad: {
       type: Number,

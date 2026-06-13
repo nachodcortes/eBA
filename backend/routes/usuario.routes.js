@@ -274,7 +274,7 @@ router.post("/login", async (req, res) => {
   try {
     const { email, contrasenia } = req.body;
 
-    if (!email || !contrasenia) {
+    if (!email || !) {
       return res.status(400).json({
         error: "Email y contraseña son obligatorios",
       });
@@ -609,20 +609,32 @@ router.get("/:id", async (req, res) => {
 router.post("/auth/google/token", async (req, res) => {
   try {
     const { token } = req.body;
+    console.log("Body recibido:", req.body);
+    console.log("Token:", token ? token.substring(0, 30) + "..." : "VACÍO");
 
-    // Obtener info del usuario desde Google
+    if (!token) {
+      return res.status(400).json({ error: "Token vacío" });
+    }
+
     const googleRes = await fetch(
       `https://www.googleapis.com/oauth2/v3/userinfo`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
     const perfil = await googleRes.json();
+    console.log("Perfil Google:", perfil); 
 
-    const emailGoogle = perfil.email.toLowerCase().trim();
+    if (!perfil.email) {
+      return res.status(401).json({ error: "Token inválido" });
+    }
+
+    const emailGoogle = perfil.email.toLowerCase().trim(); 
 
     let usuario = await Usuario.findOne({
       $or: [{ googleId: perfil.sub }, { email: emailGoogle }],
     });
+    
+    let esNuevo = false;
 
     if (usuario) {
       if (!usuario.googleId) {
@@ -631,32 +643,34 @@ router.post("/auth/google/token", async (req, res) => {
         await usuario.save();
       }
     } else {
-      const nombreUsuarioFinal = await generarNombreUsuarioUnico(perfil.name);
-
-      usuario = new Usuario({
-        googleId: perfil.sub,
-        nombre: perfil.name,
-        nombreUsuario: nombreUsuarioFinal,
-        email: emailGoogle,
-        fotoPerfil: perfil.picture,
-        emailVerificado: true,
-        esOrganizador: false,
-      });
-
-      await usuario.save();
-    }
-
+    esNuevo = true;
+    const nombreUsuarioFinal = await generarNombreUsuarioUnico(perfil.name);
+    usuario = new Usuario({
+      googleId: perfil.sub,
+      nombre: perfil.name,
+      nombreUsuario: nombreUsuarioFinal,
+      email: emailGoogle,
+      fotoPerfil: perfil.picture,
+      emailVerificado: true,
+      esOrganizador: false,
+    });
+    await usuario.save();
+  }
+  console.log("esNuevo:", esNuevo);
     return res.json({
       message: "Login con Google correcto",
       usuario: armarUsuarioRespuesta(usuario),
+      esNuevo,
     });
   } catch (error) {
+    console.error("Error Google token:", error);
     return res.status(500).json({
       error: "Error al iniciar sesión con Google",
       detalle: error.message,
     });
   }
 });
+
 
 router.get("/test-email/enviar", async (req, res) => {
   try {
@@ -676,4 +690,21 @@ router.get("/test-email/enviar", async (req, res) => {
     });
   }
 });
+router.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "eba://auth?error=true", session: false }),
+  async (req, res) => {
+    try {
+      const usuario = req.user;
+      if (!usuario.nombreUsuario) {
+        usuario.nombreUsuario = await generarNombreUsuarioUnico(usuario.nombre);
+        await usuario.save();
+      }
+
+      return res.redirect(`eba://auth?usuarioId=${usuario._id}`);
+    } catch (error) {
+      return res.redirect("eba://auth?error=true");
+    }
+  }
+);
 module.exports = router;
