@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Users,
   MessageCircle,
 } from "lucide-react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../config/api";
@@ -45,9 +45,11 @@ export default function ConnectionsScreen() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     cargarDatos();
-  }, []);
+  }, [])
+);
 
   const cargarDatos = async () => {
     try {
