@@ -3,6 +3,8 @@ const router = express.Router();
 
 const SolicitudConexion = require("../models/SolicitudConexion");
 const Conexion = require("../models/Conexion");
+const Notificacion = require("../models/Notificacion");
+const Usuario = require("../models/Usuario");
 
 
 /*
@@ -70,6 +72,21 @@ router.post("/", async (req, res) => {
       estado: "pendiente",
     });
 
+    const solicitante = await Usuario.findById(usuariosolicitante).select(
+      "nombre nombreUsuario"
+    );
+    const nombreSolicitante =
+      solicitante?.nombre || solicitante?.nombreUsuario || "Alguien";
+
+    await Notificacion.create({
+      usuarioId: usuarioreceptor,
+      mensaje: `${nombreSolicitante} te envió una solicitud de conexión.`,
+      tipo: "conexion",
+      entidadTipo: "solicitud",
+      entidadId: solicitud._id,
+      actorId: usuariosolicitante,
+    });
+
     res.status(201).json(solicitud);
   } catch (error) {
     console.error(error);
@@ -99,7 +116,7 @@ router.put("/:id/aceptar", async (req, res) => {
       });
     }
 
-    await Conexion.create({
+    const conexion = await Conexion.create({
       usuario1: solicitud.usuariosolicitante,
       usuario2: solicitud.usuarioreceptor,
     });
@@ -107,6 +124,20 @@ router.put("/:id/aceptar", async (req, res) => {
     solicitud.estado = "aceptada";
 
     await solicitud.save();
+
+    const receptor = await Usuario.findById(solicitud.usuarioreceptor).select(
+      "nombre nombreUsuario"
+    );
+    const nombreReceptor = receptor?.nombre || receptor?.nombreUsuario || "Alguien";
+
+    await Notificacion.create({
+      usuarioId: solicitud.usuariosolicitante,
+      mensaje: `${nombreReceptor} aceptó tu solicitud de conexión.`,
+      tipo: "conexion",
+      entidadTipo: "conexion",
+      entidadId: conexion._id,
+      actorId: solicitud.usuarioreceptor,
+    });
 
     res.json({
       mensaje: "Solicitud aceptada",

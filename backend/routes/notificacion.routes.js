@@ -6,12 +6,15 @@ const Notificacion = require("../models/Notificacion");
 // Crear notificación
 router.post("/", async (req, res) => {
   try {
-    const { usuarioId, mensaje, tipo } = req.body;
+    const { usuarioId, mensaje, tipo, entidadTipo, entidadId, actorId } = req.body;
 
     const notificacion = new Notificacion({
       usuarioId,
       mensaje,
       tipo,
+      entidadTipo,
+      entidadId,
+      actorId,
     });
 
     await notificacion.save();
@@ -33,6 +36,7 @@ router.get("/", async (req, res) => {
   try {
     const notificaciones = await Notificacion.find()
       .populate("usuarioId", "nombre email")
+      .populate("actorId", "nombre nombreUsuario fotoPerfil")
       .sort({ createdAt: -1 });
 
     res.json({
@@ -53,6 +57,7 @@ router.get("/usuario/:usuarioId", async (req, res) => {
     const notificaciones = await Notificacion.find({
       usuarioId: req.params.usuarioId,
     })
+      .populate("actorId", "nombre nombreUsuario fotoPerfil")
       .sort({ createdAt: -1 });
 
     res.json({
@@ -71,7 +76,8 @@ router.get("/usuario/:usuarioId", async (req, res) => {
 router.get("/:id", async (req, res) => {
   try {
     const notificacion = await Notificacion.findById(req.params.id)
-      .populate("usuarioId", "nombre email");
+      .populate("usuarioId", "nombre email")
+      .populate("actorId", "nombre nombreUsuario fotoPerfil");
 
     if (!notificacion) {
       return res.status(404).json({

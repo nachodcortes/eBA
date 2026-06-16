@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const Comentario = require("../models/Comentario");
+const Notificacion = require("../models/Notificacion");
+const Publicacion = require("../models/Publicacion");
+const Usuario = require("../models/Usuario");
 
 // Crear comentario o respuesta
 router.post("/", async (req, res) => {
@@ -26,6 +29,53 @@ router.post("/", async (req, res) => {
     const comentarioPopulado = await Comentario.findById(comentario._id)
       .populate("usuarioId", "nombre nombreUsuario email fotoPerfil intereses bio")
       .populate("comentarioPadreId");
+
+    const publicacion = await Publicacion.findById(publicacionId).select(
+      "usuarioId contenido"
+    );
+    const usuarioComentador = await Usuario.findById(usuarioId).select(
+      "nombre nombreUsuario"
+    );
+    const nombreComentador =
+      usuarioComentador?.nombre || usuarioComentador?.nombreUsuario || "Alguien";
+
+    const notificaciones = [];
+
+    if (publicacion && String(publicacion.usuarioId) !== String(usuarioId)) {
+      notificaciones.push({
+        usuarioId: publicacion.usuarioId,
+        mensaje: `${nombreComentador} comentó tu publicación.`,
+        tipo: "comentario",
+        entidadTipo: "publicacion",
+        entidadId: publicacion._id,
+        actorId: usuarioId,
+      });
+    }
+
+    if (comentarioPadreId) {
+      const comentarioPadre = await Comentario.findById(comentarioPadreId).select(
+        "usuarioId publicacionId"
+      );
+
+      if (
+        comentarioPadre &&
+        String(comentarioPadre.usuarioId) !== String(usuarioId) &&
+        String(comentarioPadre.usuarioId) !== String(publicacion?.usuarioId)
+      ) {
+        notificaciones.push({
+          usuarioId: comentarioPadre.usuarioId,
+          mensaje: `${nombreComentador} respondió tu comentario.`,
+          tipo: "comentario",
+          entidadTipo: "publicacion",
+          entidadId: comentarioPadre.publicacionId,
+          actorId: usuarioId,
+        });
+      }
+    }
+
+    if (notificaciones.length > 0) {
+      await Notificacion.insertMany(notificaciones);
+    }
 
     res.status(201).json({
       message: comentarioPadreId

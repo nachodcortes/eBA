@@ -95,7 +95,11 @@ router.get("/usuario/:usuarioId", async (req, res) => {
 router.get("/evento/:eventoId", async (req, res) => {
   try {
     const asistencias = await Asistencia.find({ eventoId: req.params.eventoId })
-      .populate("usuarioId", "nombre email");
+      .populate(
+        "usuarioId",
+        "nombre nombreUsuario email fotoPerfil intereses bio ubicacionAproximada"
+      )
+      .lean();
 
     res.json({
       message: "Asistencias del evento obtenidas correctamente",

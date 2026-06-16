@@ -13,8 +13,28 @@ const notificacionSchema = new mongoose.Schema(
     },
     tipo: {
       type: String,
-      enum: ["comentario", "conexion", "evento", "sistema"],
+      enum: ["comentario", "conexion", "evento", "sistema", "chat"],
       required: true,
+    },
+    entidadTipo: {
+      type: String,
+      enum: [
+        "chat",
+        "publicacion",
+        "comentario",
+        "solicitud",
+        "conexion",
+        "evento",
+        "usuario",
+        "sistema",
+      ],
+    },
+    entidadId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    actorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Usuario",
     },
     leida: {
       type: Boolean,

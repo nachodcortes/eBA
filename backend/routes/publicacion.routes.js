@@ -48,11 +48,40 @@ router.get("/evento/:eventoId", async (req, res) => {
     const publicaciones = await Publicacion.find({
       eventoId: req.params.eventoId,
     })
-      .populate("usuarioId", "nombre nombreUsuario email fotoPerfil intereses bio");
+      .populate("usuarioId", "nombre nombreUsuario email fotoPerfil intereses bio")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const publicacionesIds = publicaciones.map((publicacion) => publicacion._id);
+    const comentariosPorPublicacion = await Comentario.aggregate([
+      {
+        $match: {
+          publicacionId: { $in: publicacionesIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$publicacionId",
+          total: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const conteos = new Map(
+      comentariosPorPublicacion.map((comentario) => [
+        String(comentario._id),
+        comentario.total,
+      ])
+    );
+
+    const publicacionesConConteo = publicaciones.map((publicacion) => ({
+      ...publicacion,
+      comentariosCount: conteos.get(String(publicacion._id)) || 0,
+    }));
 
     res.json({
       message: "Publicaciones del evento obtenidas correctamente",
-      publicaciones,
+      publicaciones: publicacionesConConteo,
     });
   } catch (error) {
     res.status(500).json({
