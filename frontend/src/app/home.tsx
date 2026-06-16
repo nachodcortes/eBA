@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +7,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Search } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -34,9 +35,11 @@ export default function HomeScreen() {
   const [categorias, setCategorias] = useState<Interes[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     iniciarHome();
-  }, []);
+  }, [])
+);
 
   const iniciarHome = async () => {
     try {
