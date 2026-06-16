@@ -21,6 +21,7 @@ import SectionHeader from "../components/SectionHeader";
 import InterestChips from "../components/InterestChips";
 
 import { Evento } from "../types/Evento";
+import { getCached, setCached } from "../utils/cache";
 
 
 
@@ -40,44 +41,58 @@ export default function ExploreScreen() {
     useCallback(() => {
       const iniciarPantalla = async () => {
         try {
-          setLoading(true);
+          const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
-        const usuarioGuardado = await AsyncStorage.getItem("usuario");
+          if (!usuarioGuardado) {
+            router.replace("/login" as any);
+            return;
+          }
 
-        if (!usuarioGuardado) {
-          router.replace("/login" as any);
-          return;
-        }
+          const favoritosGuardados = await AsyncStorage.getItem("favoritos");
+          setFavoritos(favoritosGuardados ? JSON.parse(favoritosGuardados) : []);
 
-        const favoritosGuardados = await AsyncStorage.getItem("favoritos");
-        setFavoritos(favoritosGuardados ? JSON.parse(favoritosGuardados) : []);
+          const cacheKey = await obtenerCacheKeyInicial();
+          const eventosCacheados = cacheKey
+            ? getCached<Evento[]>(cacheKey)
+            : null;
+          const interesesCacheados = getCached<Interes[]>("intereses:todos");
 
-        await cargarIntereses();
+          setLoading(!eventosCacheados);
 
-        if (params.filtro === "promocionados") {
-          setBuscoAlgo(true);
-          setCategoriaActiva("");
-          setTextoBusqueda("");
-          setTituloPersonalizado("Eventos destacados");
-          await obtenerEventosPromocionados();
-          return;
-        }
+          if (eventosCacheados) {
+            setEventos(eventosCacheados);
+          }
 
-        if (params.filtro === "recomendados") {
-          setBuscoAlgo(true);
-          setCategoriaActiva("");
-          setTextoBusqueda("");
-          setTituloPersonalizado("Recomendados para vos");
-          await obtenerEventosRecomendadosDelUsuario();
-          return;
-        }
+          if (interesesCacheados) {
+            setInteresesDisponibles(interesesCacheados);
+          }
 
-        if (params.categoria) {
-          await filtrarPorCategoria(String(params.categoria));
-          return;
-        }
+          cargarIntereses();
 
-        await obtenerTodosLosEventos();
+          if (params.filtro === "promocionados") {
+            setBuscoAlgo(true);
+            setCategoriaActiva("");
+            setTextoBusqueda("");
+            setTituloPersonalizado("Eventos destacados");
+            await obtenerEventosPromocionados();
+            return;
+          }
+
+          if (params.filtro === "recomendados") {
+            setBuscoAlgo(true);
+            setCategoriaActiva("");
+            setTextoBusqueda("");
+            setTituloPersonalizado("Recomendados para vos");
+            await obtenerEventosRecomendadosDelUsuario();
+            return;
+          }
+
+          if (params.categoria) {
+            await filtrarPorCategoria(String(params.categoria));
+            return;
+          }
+
+          await obtenerTodosLosEventos();
       } catch (error) {
         console.log("Error al iniciar búsqueda:", error);
       } finally {
@@ -99,6 +114,7 @@ export default function ExploreScreen() {
       }
 
       setInteresesDisponibles(data.intereses || []);
+      setCached("intereses:todos", data.intereses || []);
     } catch (error) {
       console.log("Error al cargar intereses:", error);
     }
@@ -116,8 +132,34 @@ export default function ExploreScreen() {
     return usuario.id || usuario._id || null;
   };
 
+  const obtenerCacheKeyInicial = async () => {
+    if (params.filtro === "promocionados") return "eventos:promocionados";
+
+    if (params.filtro === "recomendados") {
+      const usuarioId = await obtenerUsuarioId();
+      return usuarioId ? `eventos:recomendados:${usuarioId}` : null;
+    }
+
+    if (params.categoria) {
+      return `eventos:categoria:${String(params.categoria)}`;
+    }
+
+    return "eventos:todos";
+  };
+
   const obtenerTodosLosEventos = async () => {
     try {
+      const cacheKey = "eventos:todos";
+      const eventosCacheados = getCached<Evento[]>(cacheKey);
+
+      if (eventosCacheados) {
+        setEventos(eventosCacheados);
+        setBuscoAlgo(false);
+        setCategoriaActiva("");
+        setTituloPersonalizado("");
+        setLoading(false);
+      }
+
       const response = await fetch(`${API_URL}/api/eventos`);
       const data = await response.json();
 
@@ -127,6 +169,12 @@ export default function ExploreScreen() {
       }
 
       setEventos(data.eventos || []);
+      setCached(cacheKey, data.eventos || []);
+      (data.eventos || []).forEach((evento: Evento) => {
+        if (evento._id) {
+          setCached(`evento:${evento._id}`, evento);
+        }
+      });
       setBuscoAlgo(false);
       setCategoriaActiva("");
       setTituloPersonalizado("");
@@ -145,6 +193,17 @@ export default function ExploreScreen() {
         return;
       }
 
+      const cacheKey = `eventos:recomendados:${usuarioId}`;
+      const eventosCacheados = getCached<Evento[]>(cacheKey);
+
+      if (eventosCacheados) {
+        setEventos(eventosCacheados);
+        setBuscoAlgo(true);
+        setCategoriaActiva("");
+        setTituloPersonalizado("Recomendados para vos");
+        setLoading(false);
+      }
+
       const response = await fetch(
         `${API_URL}/api/eventos/recomendados/${usuarioId}`
       );
@@ -157,6 +216,12 @@ export default function ExploreScreen() {
       }
 
       setEventos(data.eventos || []);
+      setCached(cacheKey, data.eventos || []);
+      (data.eventos || []).forEach((evento: Evento) => {
+        if (evento._id) {
+          setCached(`evento:${evento._id}`, evento);
+        }
+      });
       setBuscoAlgo(true);
       setCategoriaActiva("");
       setTituloPersonalizado("Recomendados para vos");
@@ -168,6 +233,16 @@ export default function ExploreScreen() {
 
   const obtenerEventosPromocionados = async () => {
     try {
+      const cacheKey = "eventos:promocionados";
+      const eventosCacheados = getCached<Evento[]>(cacheKey);
+
+      if (eventosCacheados) {
+        setEventos(eventosCacheados);
+        setBuscoAlgo(true);
+        setCategoriaActiva("");
+        setLoading(false);
+      }
+
       const response = await fetch(`${API_URL}/api/eventos/promocionados`);
       const data = await response.json();
 
@@ -177,6 +252,12 @@ export default function ExploreScreen() {
       }
 
       setEventos(data.eventos || []);
+      setCached(cacheKey, data.eventos || []);
+      (data.eventos || []).forEach((evento: Evento) => {
+        if (evento._id) {
+          setCached(`evento:${evento._id}`, evento);
+        }
+      });
       setBuscoAlgo(true);
       setCategoriaActiva("");
     } catch (error) {
@@ -229,11 +310,18 @@ export default function ExploreScreen() {
 
   const filtrarPorCategoria = async (categoria: string) => {
     try {
-      setLoading(true);
+      const cacheKey = `eventos:categoria:${categoria}`;
+      const eventosCacheados = getCached<Evento[]>(cacheKey);
+
+      setLoading(!eventosCacheados);
       setBuscoAlgo(true);
       setCategoriaActiva(categoria);
       setTextoBusqueda("");
       setTituloPersonalizado("");
+
+      if (eventosCacheados) {
+        setEventos(eventosCacheados);
+      }
 
       const response = await fetch(
         `${API_URL}/api/eventos/categoria/${categoria}`
@@ -247,6 +335,12 @@ export default function ExploreScreen() {
       }
 
       setEventos(data.eventos || []);
+      setCached(cacheKey, data.eventos || []);
+      (data.eventos || []).forEach((evento: Evento) => {
+        if (evento._id) {
+          setCached(`evento:${evento._id}`, evento);
+        }
+      });
     } catch (error) {
       console.log("Error al filtrar categoría:", error);
       alert("No se pudo conectar con el servidor.");

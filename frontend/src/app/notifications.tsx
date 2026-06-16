@@ -25,12 +25,14 @@ import Logo from "../components/Logo";
 import SectionHeader from "../components/SectionHeader";
 import useAutoRefresh from "../hooks/useAutoRefresh";
 
-type TipoNotificacion = "comentario" | "conexion" | "evento" | "sistema";
+type TipoNotificacion = "comentario" | "conexion" | "evento" | "sistema" | "chat";
 
 type Notificacion = {
   _id: string;
   mensaje: string;
   tipo: TipoNotificacion;
+  entidadTipo?: string;
+  entidadId?: string;
   leida: boolean;
   createdAt?: string;
 };
@@ -48,6 +50,12 @@ const tipoConfig: Record<
     label: "Comentario",
     color: "#2563EB",
     backgroundColor: "#EFF6FF",
+    icon: MessageCircle,
+  },
+  chat: {
+    label: "Chat",
+    color: "#0F766E",
+    backgroundColor: "#ECFDF5",
     icon: MessageCircle,
   },
   conexion: {
@@ -186,6 +194,31 @@ export default function NotificationsScreen() {
     }
   };
 
+  const abrirNotificacion = (notificacion: Notificacion) => {
+    if (!notificacion.leida) {
+      marcarComoLeida(notificacion._id);
+    }
+
+    if (notificacion.tipo === "chat" && notificacion.entidadId) {
+      router.push(`/chat/${notificacion.entidadId}` as any);
+      return;
+    }
+
+    if (notificacion.tipo === "comentario" && notificacion.entidadId) {
+      router.push(`/publication-detail/${notificacion.entidadId}` as any);
+      return;
+    }
+
+    if (notificacion.tipo === "evento" && notificacion.entidadId) {
+      router.push(`/event-detail/${notificacion.entidadId}` as any);
+      return;
+    }
+
+    if (notificacion.tipo === "conexion") {
+      router.push("/connections" as any);
+    }
+  };
+
   const formatearFecha = (fecha?: string) => {
     if (!fecha) return "Ahora";
 
@@ -259,12 +292,14 @@ export default function NotificationsScreen() {
               const Icon = config.icon;
 
               return (
-                <View
+                <TouchableOpacity
                   key={notificacion._id}
                   style={[
                     styles.notificationCard,
                     !notificacion.leida && styles.unreadCard,
                   ]}
+                  activeOpacity={0.86}
+                  onPress={() => abrirNotificacion(notificacion)}
                 >
                   <View
                     style={[
@@ -317,7 +352,7 @@ export default function NotificationsScreen() {
                       <Trash2 size={17} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>

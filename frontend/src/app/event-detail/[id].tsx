@@ -27,6 +27,7 @@ import {
   formatearFechaLarga,
   obtenerUbicacion,
 } from "../../utils/eventHelpers";
+import { getCached, setCached } from "../../utils/cache";
 
 export default function EventDetail() {
   const { id } = useLocalSearchParams();
@@ -53,6 +54,14 @@ export default function EventDetail() {
         return;
       }
 
+      const cacheKey = `evento:${String(id)}`;
+      const eventoCacheado = getCached<Evento>(cacheKey);
+
+      if (eventoCacheado) {
+        setEventData(eventoCacheado);
+        setLoading(false);
+      }
+
       const response = await fetch(`${API_URL}/api/eventos/${id}`);
       const data = await response.json();
 
@@ -61,7 +70,9 @@ export default function EventDetail() {
         return;
       }
 
-      setEventData(data.evento || data);
+      const evento = data.evento || data;
+      setEventData(evento);
+      setCached(cacheKey, evento);
     } catch (error) {
       console.log("Error al traer detalle:", error);
       alert("No se pudo conectar con el servidor.");

@@ -30,6 +30,7 @@ import useAutoRefresh from "../../hooks/useAutoRefresh";
 import { Usuario } from "../../types/Usuario";
 import { Publicacion, Comentario } from "../../types/Social";
 import { Evento } from "../../types/Evento";
+import { getCached, setCached } from "../../utils/cache";
 
 export default function PublicationDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -68,6 +69,20 @@ export default function PublicationDetailScreen() {
       setUsuarioActual(usuario);
       setUsuarioActualId(idUsuario);
 
+      const publicacionCacheada = getCached<Publicacion>(
+        `publicacion:${String(id)}`
+      );
+      const comentariosCacheados = getCached<Comentario[]>(
+        `comentarios:publicacion:${String(id)}`
+      );
+
+      if (publicacionCacheada) {
+        setPublicacion(publicacionCacheada);
+        setTextoPublicacionEditada(publicacionCacheada.contenido || "");
+        setComentarios(comentariosCacheados || []);
+        setLoading(false);
+      }
+
       await Promise.all([cargarPublicacion(), cargarComentarios()]);
     } catch (error) {
       console.log("Error al iniciar detalle publicación:", error);
@@ -89,6 +104,7 @@ export default function PublicationDetailScreen() {
 
       setPublicacion(data.publicacion);
       setTextoPublicacionEditada(data.publicacion?.contenido || "");
+      setCached(`publicacion:${String(id)}`, data.publicacion);
     } catch (error) {
       console.log("Error al cargar publicación:", error);
       alert("No se pudo conectar con el servidor.");
@@ -106,6 +122,7 @@ export default function PublicationDetailScreen() {
       }
 
       setComentarios(data.comentarios || []);
+      setCached(`comentarios:publicacion:${String(id)}`, data.comentarios || []);
     } catch (error) {
       console.log("Error al cargar comentarios:", error);
     }

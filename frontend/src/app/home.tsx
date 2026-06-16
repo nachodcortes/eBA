@@ -78,6 +78,11 @@ export default function HomeScreen() {
 
       setEventos(dataEventos.eventos || []);
       setCached("eventos:todos", dataEventos.eventos || []);
+      (dataEventos.eventos || []).forEach((evento: Evento) => {
+        if (evento._id) {
+          setCached(`evento:${evento._id}`, evento);
+        }
+      });
 
       fetch(`${API_URL}/api/intereses`)
         .then((response) => response.json().then((data) => ({ response, data })))

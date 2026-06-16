@@ -7,6 +7,7 @@ export type Publicacion = {
   eventoId?: Evento | string | null;
   contenido: string;
   imagen?: string;
+  comentariosCount?: number;
   createdAt?: string;
   updatedAt?: string;
 };

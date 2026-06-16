@@ -68,6 +68,7 @@ export default function EventPeopleScreen() {
   >([]);
 
   const [loading, setLoading] = useState(true);
+  const [loadingPersonas, setLoadingPersonas] = useState(true);
   const [usuarioActualId, setUsuarioActualId] = useState<string | null>(null);
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
 
@@ -93,8 +94,18 @@ export default function EventPeopleScreen() {
 
   const iniciarPantalla = async (silencioso = false) => {
     try {
+      const eventoId = id ? String(id) : null;
+      const eventoCacheado = eventoId
+        ? getCached<Evento>(`evento:${eventoId}`)
+        : null;
+
       if (!silencioso) {
-        setLoading(true);
+        setLoading(!eventoCacheado);
+        setLoadingPersonas(true);
+
+        if (eventoCacheado) {
+          setEvento(eventoCacheado);
+        }
       }
 
       const usuarioGuardado = await AsyncStorage.getItem("usuario");
@@ -116,23 +127,130 @@ export default function EventPeopleScreen() {
       setUsuarioActualId(idUsuario);
       setUsuarioActual(usuario);
 
-      if (!id) {
+      if (!eventoId) {
         alert("No se encontró el evento.");
         return;
       }
 
-      const [
-        responseEvento,
-        responseAsistencias,
-        responseConexiones,
-        responseSolicitudes,
-      ] = await Promise.all([
-        fetch(`${API_URL}/api/eventos/${id}`),
-        fetch(`${API_URL}/api/asistencias/evento/${id}`),
-        fetch(`${API_URL}/api/conexiones/usuario/${idUsuario}`),
-        fetch(`${API_URL}/api/solicitudes-conexion/pendientes/${idUsuario}`),
-      ]);
+      const asistenciasCacheadas = getCached<Asistencia[]>(
+        `asistencias:evento:${eventoId}`
+      );
+      const conexionesCacheadas = getCached<Conexion[]>(
+        `conexiones:usuario:${idUsuario}`
+      );
+      const solicitudesPendientesCacheadas = getCached<string[]>(
+        `solicitudes-pendientes:usuario:${idUsuario}`
+      );
 
+      if (!silencioso) {
+        if (asistenciasCacheadas) {
+          setAsistencias(asistenciasCacheadas);
+          setLoadingPersonas(false);
+        }
+
+        if (conexionesCacheadas) {
+          setConexiones(conexionesCacheadas);
+          setConexionesIds(obtenerIdsConexiones(conexionesCacheadas, idUsuario));
+        }
+
+        if (solicitudesPendientesCacheadas) {
+          setSolicitudesPendientesIds(solicitudesPendientesCacheadas);
+        }
+      }
+
+      const responseEventoPromise = fetch(`${API_URL}/api/eventos/${eventoId}`);
+      const responseAsistenciasPromise = fetch(
+        `${API_URL}/api/asistencias/evento/${eventoId}`
+      );
+      const responseConexionesPromise = fetch(
+        `${API_URL}/api/conexiones/usuario/${idUsuario}`
+      );
+      const responseSolicitudesPromise = fetch(
+        `${API_URL}/api/solicitudes-conexion/pendientes/${idUsuario}`
+      );
+
+      const cargarAsistenciasRequest = responseAsistenciasPromise
+        .then(async (responseAsistencias) => {
+          const dataAsistencias = await responseAsistencias.json();
+
+          if (!responseAsistencias.ok) {
+            if (!silencioso) {
+              alert(
+                dataAsistencias.message ||
+                  dataAsistencias.error ||
+                  "Error al traer personas interesadas."
+              );
+            }
+            return;
+          }
+
+          setAsistencias(dataAsistencias.asistencias || []);
+          setCached(
+            `asistencias:evento:${eventoId}`,
+            dataAsistencias.asistencias || []
+          );
+
+          if (!silencioso) {
+            setLoadingPersonas(false);
+          }
+        })
+        .catch((error) => {
+          console.log("Error cargando asistencias:", error);
+          if (!silencioso) {
+            setLoadingPersonas(false);
+          }
+        });
+
+      const cargarConexionesRequest = responseConexionesPromise
+        .then(async (responseConexiones) => {
+          const dataConexiones = await responseConexiones.json();
+
+          if (responseConexiones.ok) {
+            const conexionesObtenidas = dataConexiones || [];
+            setConexiones(conexionesObtenidas);
+            setCached(`conexiones:usuario:${idUsuario}`, conexionesObtenidas);
+            setConexionesIds(
+              obtenerIdsConexiones(conexionesObtenidas, idUsuario)
+            );
+          }
+        })
+        .catch((error) => {
+          console.log("Error cargando conexiones:", error);
+        });
+
+      const cargarSolicitudesRequest = responseSolicitudesPromise
+        .then(async (responseSolicitudes) => {
+          const dataSolicitudes = await responseSolicitudes.json();
+
+          if (responseSolicitudes.ok) {
+            const idsPendientes = (dataSolicitudes.solicitudes || []).map(
+              (solicitud: SolicitudConexion) => {
+                const solicitanteId = obtenerUsuarioId(
+                  solicitud.usuariosolicitante
+                );
+                const receptorId = obtenerUsuarioId(solicitud.usuarioreceptor);
+
+                if (solicitanteId === idUsuario) {
+                  return receptorId;
+                }
+
+                return solicitanteId;
+              }
+            );
+
+            const idsPendientesFiltrados = idsPendientes.filter(Boolean);
+            setSolicitudesPendientesIds(idsPendientesFiltrados);
+            setCached(
+              `solicitudes-pendientes:usuario:${idUsuario}`,
+              idsPendientesFiltrados
+            );
+          }
+        })
+        .catch((error) => {
+          console.log("Error cargando solicitudes:", error);
+        });
+
+      const responseEvento = await responseEventoPromise;
       const dataEvento = await responseEvento.json();
 
       if (!responseEvento.ok) {
@@ -142,63 +260,21 @@ export default function EventPeopleScreen() {
         return;
       }
 
-      setEvento(dataEvento.evento || dataEvento);
+      const eventoObtenido = dataEvento.evento || dataEvento;
+      setEvento(eventoObtenido);
+      setCached(`evento:${eventoId}`, eventoObtenido);
 
-      const dataAsistencias = await responseAsistencias.json();
-
-      if (!responseAsistencias.ok) {
-        if (!silencioso) {
-          alert(
-            dataAsistencias.message ||
-              dataAsistencias.error ||
-              "Error al traer personas interesadas."
-          );
-        }
-        return;
+      if (!silencioso) {
+        setLoading(false);
       }
 
-      setAsistencias(dataAsistencias.asistencias || []);
+      await Promise.all([
+        cargarAsistenciasRequest,
+        cargarConexionesRequest,
+        cargarSolicitudesRequest,
+      ]);
 
-      const dataConexiones = await responseConexiones.json();
-
-      if (responseConexiones.ok) {
-        const conexionesObtenidas = dataConexiones || [];
-        setConexiones(conexionesObtenidas);
-
-        const idsAmigos = conexionesObtenidas.map((conexion: Conexion) => {
-          const usuario1Id = obtenerUsuarioId(conexion.usuario1);
-          const usuario2Id = obtenerUsuarioId(conexion.usuario2);
-
-          if (usuario1Id === idUsuario) {
-            return usuario2Id;
-          }
-
-          return usuario1Id;
-        });
-
-        setConexionesIds(idsAmigos.filter(Boolean));
-      }
-
-      const dataSolicitudes = await responseSolicitudes.json();
-
-      if (responseSolicitudes.ok) {
-        const idsPendientes = (dataSolicitudes.solicitudes || []).map(
-          (solicitud: SolicitudConexion) => {
-            const solicitanteId = obtenerUsuarioId(solicitud.usuariosolicitante);
-            const receptorId = obtenerUsuarioId(solicitud.usuarioreceptor);
-
-            if (solicitanteId === idUsuario) {
-              return receptorId;
-            }
-
-            return solicitanteId;
-          }
-        );
-
-        setSolicitudesPendientesIds(idsPendientes.filter(Boolean));
-      }
-
-      cargarPublicaciones(String(id), silencioso);
+      cargarPublicaciones(eventoId, silencioso);
     } catch (error) {
       console.log("Error en pantalla de personas:", error);
       if (!silencioso) {
@@ -207,6 +283,7 @@ export default function EventPeopleScreen() {
     } finally {
       if (!silencioso) {
         setLoading(false);
+        setLoadingPersonas(false);
       }
     }
   };
@@ -216,13 +293,8 @@ export default function EventPeopleScreen() {
       const publicacionesCacheadas = getCached<Publicacion[]>(
         `publicaciones:evento:${eventoId}`
       );
-      const comentariosCacheados = getCached<Record<string, Comentario[]>>(
-        `comentarios:evento:${eventoId}`
-      );
-
       if (!silencioso && publicacionesCacheadas) {
         setPublicaciones(publicacionesCacheadas);
-        setComentariosPorPublicacion(comentariosCacheados || {});
         setLoadingPublicaciones(false);
       }
 
@@ -248,31 +320,6 @@ export default function EventPeopleScreen() {
       if (!silencioso) {
         setLoadingPublicaciones(false);
       }
-
-      const comentariosEntries = await Promise.all(
-        publicacionesObtenidas.map(async (publicacion: Publicacion) => {
-          try {
-            const responseComentarios = await fetch(
-              `${API_URL}/api/comentarios/publicacion/${publicacion._id}`
-            );
-
-            const dataComentarios = await responseComentarios.json();
-
-            return [
-              publicacion._id,
-              responseComentarios.ok ? dataComentarios.comentarios || [] : [],
-            ] as const;
-          } catch (error) {
-            console.log("Error cargando comentarios de publicación:", error);
-            return [publicacion._id, []] as const;
-          }
-        })
-      );
-
-      const comentariosTemp = Object.fromEntries(comentariosEntries);
-
-      setComentariosPorPublicacion(comentariosTemp);
-      setCached(`comentarios:evento:${eventoId}`, comentariosTemp);
     } catch (error) {
       console.log("Error cargando publicaciones:", error);
     } finally {
@@ -300,6 +347,7 @@ export default function EventPeopleScreen() {
 
       if (responseAsistencias.ok) {
         setAsistencias(dataAsistencias.asistencias || []);
+        setCached(`asistencias:evento:${id}`, dataAsistencias.asistencias || []);
       }
 
       const dataConexiones = await responseConexiones.json();
@@ -307,19 +355,10 @@ export default function EventPeopleScreen() {
       if (responseConexiones.ok) {
         const conexionesObtenidas = dataConexiones || [];
         setConexiones(conexionesObtenidas);
-
-        const idsAmigos = conexionesObtenidas.map((conexion: Conexion) => {
-          const usuario1Id = obtenerUsuarioId(conexion.usuario1);
-          const usuario2Id = obtenerUsuarioId(conexion.usuario2);
-
-          if (usuario1Id === usuarioActualId) {
-            return usuario2Id;
-          }
-
-          return usuario1Id;
-        });
-
-        setConexionesIds(idsAmigos.filter(Boolean));
+        setCached(`conexiones:usuario:${usuarioActualId}`, conexionesObtenidas);
+        setConexionesIds(
+          obtenerIdsConexiones(conexionesObtenidas, usuarioActualId)
+        );
       }
 
       const dataSolicitudes = await responseSolicitudes.json();
@@ -339,6 +378,10 @@ export default function EventPeopleScreen() {
         );
 
         setSolicitudesPendientesIds(idsPendientes.filter(Boolean));
+        setCached(
+          `solicitudes-pendientes:usuario:${usuarioActualId}`,
+          idsPendientes.filter(Boolean)
+        );
       }
     } catch (error) {
       console.log("Error refrescando personas:", error);
@@ -385,6 +428,7 @@ export default function EventPeopleScreen() {
 
       const publicacionNueva: Publicacion = {
         ...data.publicacion,
+        comentariosCount: 0,
         usuarioId:
           usuarioActual ||
           ({
@@ -394,7 +438,11 @@ export default function EventPeopleScreen() {
         createdAt: data.publicacion.createdAt || new Date().toISOString(),
       };
 
-      setPublicaciones((prev) => [publicacionNueva, ...prev]);
+      setPublicaciones((prev) => {
+        const publicacionesActualizadas = [publicacionNueva, ...prev];
+        setCached(`publicaciones:evento:${String(id)}`, publicacionesActualizadas);
+        return publicacionesActualizadas;
+      });
 
       setComentariosPorPublicacion((prev) => ({
         ...prev,
@@ -528,6 +576,24 @@ export default function EventPeopleScreen() {
 
   const obtenerUsuarioId = (usuario?: Usuario) => {
     return usuario?._id || usuario?.id;
+  };
+
+  const obtenerIdsConexiones = (
+    conexionesObtenidas: Conexion[],
+    idUsuario: string
+  ) => {
+    return conexionesObtenidas
+      .map((conexion) => {
+        const usuario1Id = obtenerUsuarioId(conexion.usuario1);
+        const usuario2Id = obtenerUsuarioId(conexion.usuario2);
+
+        if (usuario1Id === idUsuario) {
+          return usuario2Id;
+        }
+
+        return usuario1Id;
+      })
+      .filter(Boolean) as string[];
   };
 
   const esAmigo = (usuarioId?: string) => {
@@ -695,7 +761,13 @@ export default function EventPeopleScreen() {
               />
             </View>
 
-            {asistenciasFiltradas.length === 0 ? (
+            {loadingPersonas && asistenciasFiltradas.length === 0 ? (
+              <View style={styles.peopleLoadingCard}>
+                <Text style={styles.peopleLoadingText}>
+                  Cargando asistencias...
+                </Text>
+              </View>
+            ) : asistenciasFiltradas.length === 0 ? (
               <EmptyState
                 title="Todavía no hay otros interesados"
                 text="Cuando otras personas toquen “Quiero ir”, van a aparecer en esta lista."
@@ -813,7 +885,9 @@ export default function EventPeopleScreen() {
                   <PublicationPreviewCard
                     key={publicacion._id}
                     publicacion={publicacion}
-                    comentariosCount={comentarios.length}
+                    comentariosCount={
+                      publicacion.comentariosCount ?? comentarios.length
+                    }
                     onPress={() =>
                       router.push(`/publication-detail/${publicacion._id}` as any)
                     }
@@ -973,6 +1047,19 @@ const styles = StyleSheet.create({
 
   peopleList: {
     paddingBottom: 20,
+  },
+  peopleLoadingCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    paddingVertical: 22,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
+  },
+  peopleLoadingText: {
+    color: "#8D8A99",
+    fontSize: 14,
+    fontWeight: "800",
   },
   peopleSearchBox: {
     height: 48,
