@@ -64,7 +64,7 @@ router.get("/usuario/:usuarioId", async (req, res) => {
       usuarioId: req.params.usuarioId,
     }).populate(
       "eventoId",
-      "nombre descripcion fecha categoria imagen"
+      "nombre descripcion fecha categoria imagen ubicacion organizador esPromocionado"
     );
 
     res.json({

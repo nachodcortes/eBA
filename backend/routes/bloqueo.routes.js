@@ -3,6 +3,8 @@ const router = express.Router();
 
 const Bloqueo = require("../models/Bloqueo");
 const Conexion = require("../models/Conexion");
+const Chat = require("../models/Chat");
+const Mensaje = require("../models/Mensaje");
 
 
 // Crear bloqueo
@@ -38,24 +40,52 @@ router.post("/", async (req, res) => {
       motivo,
     });
 
-    // Eliminar conexión si existe
-    await Conexion.deleteMany({
+    const conexionesEliminadas = await Conexion.find({
       $or: [
         {
-          usuario1Id: bloqueadorId,
-          usuario2Id: bloqueadoId,
+          usuario1: bloqueadorId,
+          usuario2: bloqueadoId,
         },
         {
-          usuario1Id: bloqueadoId,
-          usuario2Id: bloqueadorId,
+          usuario1: bloqueadoId,
+          usuario2: bloqueadorId,
         },
       ],
     });
 
+    const idsConexiones = conexionesEliminadas.map((conexion) => conexion._id);
+
+    const chatsEliminados = await Chat.find({
+      $or: [
+        {
+          conexionId: { $in: idsConexiones },
+        },
+        {
+          participantes: { $all: [bloqueadorId, bloqueadoId] },
+        },
+      ],
+    });
+
+    const idsChats = chatsEliminados.map((chat) => chat._id);
+
+    await Mensaje.deleteMany({
+      chatId: { $in: idsChats },
+    });
+
+    await Chat.deleteMany({
+      _id: { $in: idsChats },
+    });
+
+    await Conexion.deleteMany({
+      _id: { $in: idsConexiones },
+    });
+
     res.status(201).json({
       message:
-        "Usuario bloqueado correctamente y conexión eliminada",
+        "Usuario bloqueado correctamente",
       bloqueo,
+      conexionesEliminadas: idsConexiones.length,
+      chatsEliminados: idsChats.length,
     });
 
   } catch (error) {

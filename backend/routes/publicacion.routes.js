@@ -90,6 +90,57 @@ router.get("/evento/:eventoId", async (req, res) => {
     });
   }
 });
+
+// Obtener publicaciones de un usuario
+router.get("/usuario/:usuarioId", async (req, res) => {
+  try {
+    const publicaciones = await Publicacion.find({
+      usuarioId: req.params.usuarioId,
+    })
+      .populate("usuarioId", "nombre nombreUsuario email fotoPerfil intereses bio")
+      .populate("eventoId", "nombre fecha categoria imagen ubicacion organizador")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const publicacionesIds = publicaciones.map((publicacion) => publicacion._id);
+    const comentariosPorPublicacion = await Comentario.aggregate([
+      {
+        $match: {
+          publicacionId: { $in: publicacionesIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$publicacionId",
+          total: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const conteos = new Map(
+      comentariosPorPublicacion.map((comentario) => [
+        String(comentario._id),
+        comentario.total,
+      ])
+    );
+
+    const publicacionesConConteo = publicaciones.map((publicacion) => ({
+      ...publicacion,
+      comentariosCount: conteos.get(String(publicacion._id)) || 0,
+    }));
+
+    res.json({
+      message: "Publicaciones del usuario obtenidas correctamente",
+      publicaciones: publicacionesConConteo,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al obtener publicaciones del usuario",
+      detalle: error.message,
+    });
+  }
+});
+
 // Obtener publicación por id
 router.get("/:id", async (req, res) => {
   try {
