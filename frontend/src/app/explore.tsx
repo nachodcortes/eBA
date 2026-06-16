@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams , useFocusEffect } from "expo-router";
 import { Search, SlidersHorizontal } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {Interes } from '../types/Interes'
@@ -36,10 +36,11 @@ export default function ExploreScreen() {
   const [favoritos, setFavoritos] = useState<string[]>([]);
   const [tituloPersonalizado, setTituloPersonalizado] = useState("");
 
-  useEffect(() => {
-    const iniciarPantalla = async () => {
-      try {
-        setLoading(true);
+  useFocusEffect(
+    useCallback(() => {
+      const iniciarPantalla = async () => {
+        try {
+          setLoading(true);
 
         const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
@@ -85,7 +86,7 @@ export default function ExploreScreen() {
     };
 
     iniciarPantalla();
-  }, [params.filtro, params.categoria]);
+  }, [params.filtro, params.categoria]));
 
   const cargarIntereses = async () => {
     try {
