@@ -11,9 +11,10 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
+  MessageCircle,
   Plus,
-  UserRound,
-  CheckCircle,
+  Search,
+  UserPlus,
   Clock3,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -21,8 +22,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../../config/api";
 import LoadingScreen from "../../components/LoadingScreen";
 import EmptyState from "../../components/EmptyState";
-import UserAvatar from "../../components/UserAvatar";
+import ProfileAvatarLink from "../../components/ProfileAvatarLink";
 import SectionHeader from "../../components/SectionHeader";
+import useAutoRefresh from "../../hooks/useAutoRefresh";
 
 import CreatePublicationModal from "../../components/publications/CreatePublicationModal";
 import PublicationPreviewCard from "../../components/publications/PublicationPreviewCard";
@@ -32,6 +34,7 @@ import { Usuario } from "../../types/Usuario";
 import { Publicacion, Comentario } from "../../types/Social";
 
 import { obtenerImagen, formatearFechaLarga } from "../../utils/eventHelpers";
+import { getCached, setCached } from "../../utils/cache";
 
 type Asistencia = {
   _id: string;
@@ -58,6 +61,7 @@ export default function EventPeopleScreen() {
 
   const [evento, setEvento] = useState<Evento | null>(null);
   const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
+  const [conexiones, setConexiones] = useState<Conexion[]>([]);
   const [conexionesIds, setConexionesIds] = useState<string[]>([]);
   const [solicitudesPendientesIds, setSolicitudesPendientesIds] = useState<
     string[]
@@ -87,9 +91,11 @@ export default function EventPeopleScreen() {
     }, [id])
   );
 
-  const iniciarPantalla = async () => {
+  const iniciarPantalla = async (silencioso = false) => {
     try {
-      setLoading(true);
+      if (!silencioso) {
+        setLoading(true);
+      }
 
       const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
@@ -115,43 +121,51 @@ export default function EventPeopleScreen() {
         return;
       }
 
-      const responseEvento = await fetch(`${API_URL}/api/eventos/${id}`);
+      const [
+        responseEvento,
+        responseAsistencias,
+        responseConexiones,
+        responseSolicitudes,
+      ] = await Promise.all([
+        fetch(`${API_URL}/api/eventos/${id}`),
+        fetch(`${API_URL}/api/asistencias/evento/${id}`),
+        fetch(`${API_URL}/api/conexiones/usuario/${idUsuario}`),
+        fetch(`${API_URL}/api/solicitudes-conexion/pendientes/${idUsuario}`),
+      ]);
+
       const dataEvento = await responseEvento.json();
 
       if (!responseEvento.ok) {
-        alert(dataEvento.message || dataEvento.error || "Error al traer evento.");
+        if (!silencioso) {
+          alert(dataEvento.message || dataEvento.error || "Error al traer evento.");
+        }
         return;
       }
 
       setEvento(dataEvento.evento || dataEvento);
 
-      const responseAsistencias = await fetch(
-        `${API_URL}/api/asistencias/evento/${id}`
-      );
-
       const dataAsistencias = await responseAsistencias.json();
 
       if (!responseAsistencias.ok) {
-        alert(
-          dataAsistencias.message ||
-            dataAsistencias.error ||
-            "Error al traer personas interesadas."
-        );
+        if (!silencioso) {
+          alert(
+            dataAsistencias.message ||
+              dataAsistencias.error ||
+              "Error al traer personas interesadas."
+          );
+        }
         return;
       }
 
       setAsistencias(dataAsistencias.asistencias || []);
 
-      await cargarPublicaciones(String(id));
-
-      const responseConexiones = await fetch(
-        `${API_URL}/api/conexiones/usuario/${idUsuario}`
-      );
-
       const dataConexiones = await responseConexiones.json();
 
       if (responseConexiones.ok) {
-        const idsAmigos = (dataConexiones || []).map((conexion: Conexion) => {
+        const conexionesObtenidas = dataConexiones || [];
+        setConexiones(conexionesObtenidas);
+
+        const idsAmigos = conexionesObtenidas.map((conexion: Conexion) => {
           const usuario1Id = obtenerUsuarioId(conexion.usuario1);
           const usuario2Id = obtenerUsuarioId(conexion.usuario2);
 
@@ -164,10 +178,6 @@ export default function EventPeopleScreen() {
 
         setConexionesIds(idsAmigos.filter(Boolean));
       }
-
-      const responseSolicitudes = await fetch(
-        `${API_URL}/api/solicitudes-conexion/pendientes/${idUsuario}`
-      );
 
       const dataSolicitudes = await responseSolicitudes.json();
 
@@ -187,19 +197,38 @@ export default function EventPeopleScreen() {
 
         setSolicitudesPendientesIds(idsPendientes.filter(Boolean));
       }
+
+      cargarPublicaciones(String(id), silencioso);
     } catch (error) {
       console.log("Error en pantalla de personas:", error);
-      alert("No se pudo conectar con el servidor.");
+      if (!silencioso) {
+        alert("No se pudo conectar con el servidor.");
+      }
     } finally {
-      setLoading(false);
+      if (!silencioso) {
+        setLoading(false);
+      }
     }
   };
 
-  const cargarPublicaciones = async (eventoId: string) => {
+  const cargarPublicaciones = async (eventoId: string, silencioso = false) => {
     try {
-      setLoadingPublicaciones(true);
-      setPublicaciones([]);
-      setComentariosPorPublicacion({});
+      const publicacionesCacheadas = getCached<Publicacion[]>(
+        `publicaciones:evento:${eventoId}`
+      );
+      const comentariosCacheados = getCached<Record<string, Comentario[]>>(
+        `comentarios:evento:${eventoId}`
+      );
+
+      if (!silencioso && publicacionesCacheadas) {
+        setPublicaciones(publicacionesCacheadas);
+        setComentariosPorPublicacion(comentariosCacheados || {});
+        setLoadingPublicaciones(false);
+      }
+
+      if (!silencioso) {
+        setLoadingPublicaciones(!publicacionesCacheadas);
+      }
 
       const response = await fetch(
         `${API_URL}/api/publicaciones/evento/${eventoId}`
@@ -214,30 +243,113 @@ export default function EventPeopleScreen() {
 
       const publicacionesObtenidas = data.publicaciones || [];
       setPublicaciones(publicacionesObtenidas);
+      setCached(`publicaciones:evento:${eventoId}`, publicacionesObtenidas);
 
-      const comentariosTemp: Record<string, Comentario[]> = {};
-
-      for (const publicacion of publicacionesObtenidas) {
-        const responseComentarios = await fetch(
-          `${API_URL}/api/comentarios/publicacion/${publicacion._id}`
-        );
-
-        const dataComentarios = await responseComentarios.json();
-
-        if (responseComentarios.ok) {
-          comentariosTemp[publicacion._id] = dataComentarios.comentarios || [];
-        } else {
-          comentariosTemp[publicacion._id] = [];
-        }
+      if (!silencioso) {
+        setLoadingPublicaciones(false);
       }
 
+      const comentariosEntries = await Promise.all(
+        publicacionesObtenidas.map(async (publicacion: Publicacion) => {
+          try {
+            const responseComentarios = await fetch(
+              `${API_URL}/api/comentarios/publicacion/${publicacion._id}`
+            );
+
+            const dataComentarios = await responseComentarios.json();
+
+            return [
+              publicacion._id,
+              responseComentarios.ok ? dataComentarios.comentarios || [] : [],
+            ] as const;
+          } catch (error) {
+            console.log("Error cargando comentarios de publicación:", error);
+            return [publicacion._id, []] as const;
+          }
+        })
+      );
+
+      const comentariosTemp = Object.fromEntries(comentariosEntries);
+
       setComentariosPorPublicacion(comentariosTemp);
+      setCached(`comentarios:evento:${eventoId}`, comentariosTemp);
     } catch (error) {
       console.log("Error cargando publicaciones:", error);
     } finally {
-      setLoadingPublicaciones(false);
+      if (!silencioso && !getCached<Publicacion[]>(`publicaciones:evento:${eventoId}`)) {
+        setLoadingPublicaciones(false);
+      }
     }
   };
+
+  const refrescarPersonasYConexiones = async () => {
+    try {
+      if (!id || !usuarioActualId) return;
+
+      const [
+        responseAsistencias,
+        responseConexiones,
+        responseSolicitudes,
+      ] = await Promise.all([
+        fetch(`${API_URL}/api/asistencias/evento/${id}`),
+        fetch(`${API_URL}/api/conexiones/usuario/${usuarioActualId}`),
+        fetch(`${API_URL}/api/solicitudes-conexion/pendientes/${usuarioActualId}`),
+      ]);
+
+      const dataAsistencias = await responseAsistencias.json();
+
+      if (responseAsistencias.ok) {
+        setAsistencias(dataAsistencias.asistencias || []);
+      }
+
+      const dataConexiones = await responseConexiones.json();
+
+      if (responseConexiones.ok) {
+        const conexionesObtenidas = dataConexiones || [];
+        setConexiones(conexionesObtenidas);
+
+        const idsAmigos = conexionesObtenidas.map((conexion: Conexion) => {
+          const usuario1Id = obtenerUsuarioId(conexion.usuario1);
+          const usuario2Id = obtenerUsuarioId(conexion.usuario2);
+
+          if (usuario1Id === usuarioActualId) {
+            return usuario2Id;
+          }
+
+          return usuario1Id;
+        });
+
+        setConexionesIds(idsAmigos.filter(Boolean));
+      }
+
+      const dataSolicitudes = await responseSolicitudes.json();
+
+      if (responseSolicitudes.ok) {
+        const idsPendientes = (dataSolicitudes.solicitudes || []).map(
+          (solicitud: SolicitudConexion) => {
+            const solicitanteId = obtenerUsuarioId(solicitud.usuariosolicitante);
+            const receptorId = obtenerUsuarioId(solicitud.usuarioreceptor);
+
+            if (solicitanteId === usuarioActualId) {
+              return receptorId;
+            }
+
+            return solicitanteId;
+          }
+        );
+
+        setSolicitudesPendientesIds(idsPendientes.filter(Boolean));
+      }
+    } catch (error) {
+      console.log("Error refrescando personas:", error);
+    }
+  };
+
+  useAutoRefresh(
+    useCallback(() => refrescarPersonasYConexiones(), [id, usuarioActualId]),
+    20000,
+    !loading
+  );
 
   const crearPublicacion = async () => {
     try {
@@ -293,6 +405,63 @@ export default function EventPeopleScreen() {
       setModalPublicacionVisible(false);
     } catch (error) {
       console.log("Error al crear publicación:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const abrirPerfilUsuario = (usuarioId?: string) => {
+    if (!usuarioId) return;
+    router.push(`/user-profile/${usuarioId}` as any);
+  };
+
+  const obtenerConexionConUsuario = (usuarioId?: string) => {
+    if (!usuarioId) return null;
+
+    return (
+      conexiones.find((conexion) => {
+        const usuario1Id = obtenerUsuarioId(conexion.usuario1);
+        const usuario2Id = obtenerUsuarioId(conexion.usuario2);
+
+        return usuario1Id === usuarioId || usuario2Id === usuarioId;
+      }) || null
+    );
+  };
+
+  const abrirChat = async (conexion: Conexion, usuarioConexionId?: string) => {
+    try {
+      if (!usuarioActualId || !usuarioConexionId) return;
+
+      const responseExistente = await fetch(
+        `${API_URL}/api/chats/entre/${usuarioActualId}/${usuarioConexionId}`
+      );
+
+      if (responseExistente.ok) {
+        const dataExistente = await responseExistente.json();
+        router.push(`/chat/${dataExistente.chat._id}` as any);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/chats`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conexionId: conexion._id,
+          participantes: [usuarioActualId, usuarioConexionId],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo abrir el chat.");
+        return;
+      }
+
+      router.push(`/chat/${data.chat._id}` as any);
+    } catch (error) {
+      console.log("Error abriendo chat:", error);
       alert("No se pudo conectar con el servidor.");
     }
   };
@@ -449,14 +618,18 @@ export default function EventPeopleScreen() {
 
             <View style={styles.avatarRow}>
               {asistenciasFiltradas.slice(0, 3).map((asistencia, index) => (
-                <View
+                <TouchableOpacity
                   key={asistencia._id}
                   style={[styles.smallAvatar, index > 0 && styles.avatarOverlap]}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    abrirPerfilUsuario(obtenerUsuarioId(asistencia.usuarioId))
+                  }
                 >
                   <Text style={styles.smallAvatarText}>
                     {obtenerInicial(asistencia.usuarioId?.nombre)}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))}
 
               <View style={styles.plusCircle}>
@@ -512,6 +685,7 @@ export default function EventPeopleScreen() {
         {tabActiva === "personas" && (
           <View style={styles.peopleList}>
             <View style={styles.peopleSearchBox}>
+              <Search size={18} color="#8B35E8" />
               <TextInput
                 style={styles.peopleSearchInput}
                 placeholder="Buscar personas por nombre o intereses..."
@@ -537,24 +711,35 @@ export default function EventPeopleScreen() {
                 const receptorId = obtenerUsuarioId(usuario);
                 const yaEsAmigo = esAmigo(receptorId);
                 const solicitudPendiente = tieneSolicitudPendiente(receptorId);
+                const conexion = obtenerConexionConUsuario(receptorId);
+                const intereses = usuario?.intereses?.slice(0, 3) || [];
 
                 return (
                   <View key={asistencia._id} style={styles.personCard}>
-                    <UserAvatar usuario={usuario} size={42} />
+                    <ProfileAvatarLink usuario={usuario} size={54} />
 
-                    <View style={styles.personInfo}>
+                    <TouchableOpacity
+                      style={styles.personInfo}
+                      activeOpacity={0.85}
+                      onPress={() => abrirPerfilUsuario(receptorId)}
+                    >
                       <Text style={styles.personName}>
                         {usuario?.nombre || "Usuario"}
                       </Text>
 
                       <Text style={styles.personSubtitle}>
-                        {usuario?.email || "Sin email disponible"}
+                        @{usuario?.nombreUsuario || "usuario"} ·{" "}
+                        {usuario?.ubicacionAproximada || "Ubicación no cargada"}
                       </Text>
 
-                      {usuario?.intereses && usuario.intereses.length > 0 && (
-                        <Text style={styles.personInterests}>
-                          {usuario.intereses.join(", ")}
-                        </Text>
+                      {intereses.length > 0 && (
+                        <View style={styles.personChips}>
+                          {intereses.map((interes) => (
+                            <View key={interes} style={styles.personChip}>
+                              <Text style={styles.personChipText}>{interes}</Text>
+                            </View>
+                          ))}
+                        </View>
                       )}
 
                       <Text
@@ -565,17 +750,21 @@ export default function EventPeopleScreen() {
                         ]}
                       >
                         {yaEsAmigo
-                          ? "Ya son conexión"
+                          ? "Ya son conexión, pueden coordinar"
                           : solicitudPendiente
                             ? "Solicitud pendiente"
-                            : "Estado: interesado"}
+                            : "También quiere ir a este evento"}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
 
                     {yaEsAmigo ? (
-                      <View style={styles.friendButton}>
-                        <CheckCircle size={22} color="#12A150" />
-                      </View>
+                      <TouchableOpacity
+                        style={styles.friendButton}
+                        activeOpacity={0.85}
+                        onPress={() => conexion && abrirChat(conexion, receptorId)}
+                      >
+                        <MessageCircle size={20} color="#12A150" />
+                      </TouchableOpacity>
                     ) : solicitudPendiente ? (
                       <View style={styles.pendingButton}>
                         <Clock3 size={21} color="#8B35E8" />
@@ -586,7 +775,7 @@ export default function EventPeopleScreen() {
                         activeOpacity={0.85}
                         onPress={() => enviarSolicitudConexion(receptorId)}
                       >
-                        <UserRound size={20} color="#FFFFFF" />
+                        <UserPlus size={20} color="#FFFFFF" />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -791,32 +980,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E0D9F4",
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 18,
   },
   peopleSearchInput: {
+    flex: 1,
+    marginLeft: 8,
     fontSize: 14,
     color: "#332047",
     outlineStyle: "none" as any,
   },
   personCard: {
-    minHeight: 76,
-    borderRadius: 34,
+    minHeight: 94,
+    borderRadius: 26,
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 14,
     marginBottom: 18,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
   },
   personInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   personName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "900",
     color: "#2D2934",
     marginBottom: 3,
@@ -826,16 +1019,28 @@ const styles = StyleSheet.create({
     color: "#8D8A99",
     marginBottom: 3,
   },
-  personInterests: {
-    fontSize: 11,
-    color: "#8B35E8",
-    fontWeight: "700",
-    marginBottom: 3,
+  personChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 6,
+  },
+  personChip: {
+    backgroundColor: "#F1ECFF",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  personChipText: {
+    fontSize: 10,
+    color: "#7528F0",
+    fontWeight: "900",
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#7528F0",
-    fontWeight: "700",
+    fontWeight: "800",
   },
   friendStatusText: {
     color: "#12A150",

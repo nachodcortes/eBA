@@ -21,8 +21,9 @@ import BottomNav from "../components/BottomNav";
 import Logo from "../components/Logo";
 import LoadingScreen from "../components/LoadingScreen";
 import EmptyState from "../components/EmptyState";
-import UserAvatar from "../components/UserAvatar";
+import ProfileAvatarLink from "../components/ProfileAvatarLink";
 import SectionHeader from "../components/SectionHeader";
+import useAutoRefresh from "../hooks/useAutoRefresh";
 
 import { Usuario } from "../types/Usuario";
 
@@ -51,9 +52,11 @@ export default function ConnectionsScreen() {
   }, [])
 );
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (silencioso = false) => {
     try {
-      setLoading(true);
+      if (!silencioso) {
+        setLoading(true);
+      }
 
       const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
@@ -98,11 +101,21 @@ export default function ConnectionsScreen() {
       }
     } catch (error) {
       console.log("Error al cargar conexiones:", error);
-      alert("No se pudo conectar con el servidor.");
+      if (!silencioso) {
+        alert("No se pudo conectar con el servidor.");
+      }
     } finally {
-      setLoading(false);
+      if (!silencioso) {
+        setLoading(false);
+      }
     }
   };
+
+  useAutoRefresh(
+    useCallback(() => cargarDatos(true), []),
+    15000,
+    !loading
+  );
 
   const aceptarSolicitud = async (solicitudId: string) => {
     try {
@@ -150,6 +163,53 @@ export default function ConnectionsScreen() {
     }
   };
 
+  const abrirChat = async (conexion: Conexion) => {
+    try {
+      if (!usuarioActualId) return;
+
+      const usuarioConexion = obtenerOtroUsuario(conexion);
+      const usuarioConexionId = obtenerIdUsuario(usuarioConexion);
+
+      if (!usuarioConexionId) {
+        alert("No se pudo identificar la conexión.");
+        return;
+      }
+
+      const responseExistente = await fetch(
+        `${API_URL}/api/chats/entre/${usuarioActualId}/${usuarioConexionId}`
+      );
+
+      if (responseExistente.ok) {
+        const dataExistente = await responseExistente.json();
+        router.push(`/chat/${dataExistente.chat._id}` as any);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/chats`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conexionId: conexion._id,
+          participantes: [usuarioActualId, usuarioConexionId],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo abrir el chat.");
+        return;
+      }
+
+      router.push(`/chat/${data.chat._id}` as any);
+    } catch (error) {
+      console.log("Error al abrir chat:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
   const obtenerIdUsuario = (usuario?: Usuario) => {
     return usuario?._id || usuario?.id;
   };
@@ -165,7 +225,15 @@ export default function ConnectionsScreen() {
   };
 
   const obtenerUbicacion = (usuario?: Usuario) => {
-    return usuario?.ubicacionAproximada?.ciudad || "Ubicación no cargada";
+    const ubicacion = usuario?.ubicacionAproximada as
+      | string
+      | { ciudad?: string }
+      | undefined;
+
+    if (!ubicacion) return "Ubicación no cargada";
+    if (typeof ubicacion === "string") return ubicacion || "Ubicación no cargada";
+
+    return ubicacion.ciudad || "Ubicación no cargada";
   };
 
   const obtenerIntereses = (usuario?: Usuario) => {
@@ -193,6 +261,15 @@ export default function ConnectionsScreen() {
         <Text style={styles.subtitle}>
           Personas con las que conectaste para compartir eventos.
         </Text>
+
+        <TouchableOpacity
+          style={styles.chatsShortcut}
+          activeOpacity={0.85}
+          onPress={() => router.push("/chats" as any)}
+        >
+          <MessageCircle size={19} color="#7528F0" />
+          <Text style={styles.chatsShortcutText}>Ver chats</Text>
+        </TouchableOpacity>
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
@@ -232,7 +309,7 @@ export default function ConnectionsScreen() {
 
             return (
               <View key={solicitud._id} style={styles.requestCard}>
-                <UserAvatar usuario={usuarioSolicitante} size={54} />
+                <ProfileAvatarLink usuario={usuarioSolicitante} size={54} />
 
                 <View style={styles.userInfo}>
                   <Text style={styles.name}>
@@ -285,7 +362,7 @@ export default function ConnectionsScreen() {
 
             return (
               <View key={conexion._id} style={styles.connectionCard}>
-                <UserAvatar usuario={usuarioConexion} size={54} />
+                <ProfileAvatarLink usuario={usuarioConexion} size={54} />
 
                 <View style={styles.userInfo}>
                   <View style={styles.nameRow}>
@@ -315,7 +392,11 @@ export default function ConnectionsScreen() {
                   </View>
                 </View>
 
-                <TouchableOpacity style={styles.messageButton} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={styles.messageButton}
+                  activeOpacity={0.85}
+                  onPress={() => abrirChat(conexion)}
+                >
                   <MessageCircle size={20} color="#7528F0" />
                 </TouchableOpacity>
               </View>
@@ -349,7 +430,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#8D8A99",
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 14,
+  },
+  chatsShortcut: {
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E0D9F4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  chatsShortcutText: {
+    marginLeft: 8,
+    color: "#7528F0",
+    fontSize: 14,
+    fontWeight: "900",
   },
   summaryCard: {
     backgroundColor: "#FFFFFF",

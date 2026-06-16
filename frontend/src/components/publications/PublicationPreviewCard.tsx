@@ -1,5 +1,7 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { MessageCircle } from "lucide-react-native";
+import ProfileAvatarLink from "../ProfileAvatarLink";
+import ProfileTextLink from "../ProfileTextLink";
 import { Publicacion } from "../../types/Social";
 import { Usuario } from "../../types/Usuario";
 
@@ -30,29 +32,22 @@ export default function PublicationPreviewCard({
       ? publicacion.usuarioId
       : null;
 
-  const usuarioEliminado = !usuario;
-
   const nombreUsuario = usuario?.nombre || "Usuario eliminado";
   const username = usuario?.nombreUsuario || "usuario_eliminado";
-  const fotoPerfil = usuario?.fotoPerfil;
 
   const contenidoCard = (
     <View style={styles.card}>
       <View style={styles.header}>
-        {fotoPerfil ? (
-          <Image source={{ uri: fotoPerfil }} style={styles.avatar} />
-        ) : (
-          <View style={styles.deletedAvatar}>
-            <Text style={styles.deletedAvatarText}>
-              {usuarioEliminado ? "?" : nombreUsuario.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <ProfileAvatarLink usuario={publicacion.usuarioId} size={38} />
 
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{nombreUsuario}</Text>
+          <ProfileTextLink usuario={publicacion.usuarioId}>
+            <Text style={styles.userName}>{nombreUsuario}</Text>
+          </ProfileTextLink>
 
-          <Text style={styles.username}>@{username}</Text>
+          <ProfileTextLink usuario={publicacion.usuarioId}>
+            <Text style={styles.username}>@{username}</Text>
+          </ProfileTextLink>
 
           <Text style={styles.date}>
             {formatearFecha(publicacion.createdAt)}
@@ -60,29 +55,39 @@ export default function PublicationPreviewCard({
         </View>
       </View>
 
-      <Text style={styles.content} numberOfLines={3}>
-        {publicacion.contenido}
-      </Text>
+      {onPress ? (
+        <TouchableOpacity activeOpacity={0.88} onPress={onPress}>
+          <Text style={styles.content} numberOfLines={3}>
+            {publicacion.contenido}
+          </Text>
 
-      <View style={styles.footer}>
-        <MessageCircle size={16} color="#8B35E8" />
-        <Text style={styles.footerText}>
-          {comentariosCount}{" "}
-          {comentariosCount === 1 ? "comentario" : "comentarios"}
-        </Text>
-      </View>
+          <View style={styles.footer}>
+            <MessageCircle size={16} color="#8B35E8" />
+            <Text style={styles.footerText}>
+              {comentariosCount}{" "}
+              {comentariosCount === 1 ? "comentario" : "comentarios"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <>
+          <Text style={styles.content} numberOfLines={3}>
+            {publicacion.contenido}
+          </Text>
+
+          <View style={styles.footer}>
+            <MessageCircle size={16} color="#8B35E8" />
+            <Text style={styles.footerText}>
+              {comentariosCount}{" "}
+              {comentariosCount === 1 ? "comentario" : "comentarios"}
+            </Text>
+          </View>
+        </>
+      )}
     </View>
   );
 
-  if (usuarioEliminado || !onPress) {
-    return contenidoCard;
-  }
-
-  return (
-    <TouchableOpacity activeOpacity={0.88} onPress={onPress}>
-      {contenidoCard}
-    </TouchableOpacity>
-  );
+  return contenidoCard;
 }
 
 const styles = StyleSheet.create({
@@ -99,26 +104,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-  },
-  deletedAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#E8E1F8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deletedAvatarText: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#7528F0",
-  },
   userInfo: {
-    marginLeft: 10,
     flex: 1,
   },
   userName: {

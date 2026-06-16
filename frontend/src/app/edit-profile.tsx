@@ -15,7 +15,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 
 import { API_URL } from "../config/api";
+import InterestChips from "../components/InterestChips";
 import UserAvatar from "../components/UserAvatar";
+import { Interes } from "../types/Interes";
 import { Usuario } from "../types/Usuario";
 
 export default function EditProfileScreen() {
@@ -29,6 +31,8 @@ export default function EditProfileScreen() {
     const [instagram, setInstagram] = useState("");
     const [fotoPerfil, setFotoPerfil] = useState("");
     const [nombreUsuario, setNombreUsuario] = useState("");
+    const [interesesDisponibles, setInteresesDisponibles] = useState<Interes[]>([]);
+    const [intereses, setIntereses] = useState<string[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [guardando, setGuardando] = useState(false);
@@ -75,12 +79,30 @@ export default function EditProfileScreen() {
             setBio(usuarioCompleto.bio || "");
             setInstagram(usuarioCompleto.instagram || "");
             setFotoPerfil(usuarioCompleto.fotoPerfil || "");
+            setIntereses(usuarioCompleto.intereses || []);
+
+            const responseIntereses = await fetch(`${API_URL}/api/intereses`);
+            const dataIntereses = await responseIntereses.json();
+
+            if (responseIntereses.ok) {
+                setInteresesDisponibles(dataIntereses.intereses || []);
+            }
         } catch (error) {
             console.log("Error al cargar usuario:", error);
             alert("No se pudo conectar con el servidor.");
         } finally {
             setLoading(false);
         }
+    };
+
+    const toggleInteres = (slug: string) => {
+        setIntereses((prev) => {
+            if (prev.includes(slug)) {
+                return prev.filter((item) => item !== slug);
+            }
+
+            return [...prev, slug];
+        });
     };
 
     const elegirFoto = async () => {
@@ -139,6 +161,7 @@ export default function EditProfileScreen() {
                     bio: bio.trim(),
                     instagram: instagram.trim(),
                     fotoPerfil,
+                    intereses,
                 }),
             });
 
@@ -267,6 +290,29 @@ export default function EditProfileScreen() {
                         onChangeText={setBio}
                         multiline
                     />
+
+                    <Text style={styles.label}>Intereses</Text>
+
+                    {interesesDisponibles.length === 0 ? (
+                        <Text style={styles.helperText}>
+                            No se pudieron cargar intereses para elegir.
+                        </Text>
+                    ) : (
+                        <>
+                            <Text style={styles.helperText}>
+                                Elegí lo que querés usar para recomendaciones y conexiones.
+                            </Text>
+
+                            <View style={styles.interestsContainer}>
+                                <InterestChips
+                                    intereses={interesesDisponibles}
+                                    seleccionados={intereses}
+                                    onPress={toggleInteres}
+                                    variant="register"
+                                />
+                            </View>
+                        </>
+                    )}
                 </View>
 
                 <TouchableOpacity
@@ -386,6 +432,17 @@ const styles = StyleSheet.create({
         minHeight: 96,
         paddingTop: 12,
         textAlignVertical: "top",
+    },
+    helperText: {
+        color: "#8D8A99",
+        fontSize: 12,
+        lineHeight: 18,
+        marginBottom: 12,
+    },
+    interestsContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        marginBottom: 8,
     },
     saveButton: {
         height: 54,

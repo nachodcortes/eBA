@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { EyeOff, Eye } from "lucide-react-native";
@@ -14,8 +15,15 @@ import Logo from "@/components/Logo";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session"; 
+import Constants, { ExecutionEnvironment } from "expo-constants";
 
-import { GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI } from "@/utils/googleAuth";
+import {
+  GOOGLE_ANDROID_CLIENT_ID,
+  GOOGLE_ANDROID_CLIENT_ID_CONFIGURED,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID_CONFIGURED,
+} from "@/utils/googleAuth";
 
 
 console.log("URI:", AuthSession.makeRedirectUri({ scheme: "eba" }));
@@ -26,12 +34,23 @@ export default function LoginScreen() {
   const [contrasenia, setContrasenia] = useState("");
   const [loading, setLoading] = useState(false);
   const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
+  const estaEnExpoGoNativo =
+    Platform.OS !== "web" &&
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  const faltaClientNativo =
+    (Platform.OS === "ios" && !GOOGLE_IOS_CLIENT_ID_CONFIGURED) ||
+    (Platform.OS === "android" && !GOOGLE_ANDROID_CLIENT_ID_CONFIGURED);
+  const googleNativoDisponible = !estaEnExpoGoNativo && !faltaClientNativo;
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-  webClientId: GOOGLE_CLIENT_ID,
-  redirectUri: AuthSession.makeRedirectUri(), 
-  
-});
+    webClientId: GOOGLE_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    redirectUri:
+      Platform.OS === "web"
+        ? undefined
+        : AuthSession.makeRedirectUri({ native: "eba://auth" }),
+  });
 
 useEffect(() => {
   console.log("Response type:", response?.type);
@@ -74,6 +93,17 @@ const handleLoginGoogle = async (token: string) => {
     setLoading(false);
   }
 };
+
+  const iniciarGoogle = async () => {
+    if (Platform.OS !== "web" && !googleNativoDisponible) {
+      alert(
+        "Google en Expo Go no está disponible porque Google bloquea redirects exp://. Probalo en web o configurá un Client ID nativo y usá un development build."
+      );
+      return;
+    }
+
+    await promptAsync();
+  };
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -228,7 +258,7 @@ const handleLoginGoogle = async (token: string) => {
           {/* ── Botón Google ── */}
           <TouchableOpacity
               style={[styles.socialButton, (!request || loading) && styles.disabledButton]}
-              onPress={() => promptAsync()}
+              onPress={iniciarGoogle}
               disabled={!request || loading}
             >
               <Text style={styles.socialText}>Google</Text>

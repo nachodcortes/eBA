@@ -21,6 +21,7 @@ import EmptyState from "../components/EmptyState";
 import InterestChips from "@/components/InterestChips";
 
 import { Evento } from "../types/Evento";
+import { getCached, setCached } from "../utils/cache";
 
 type Interes = {
   _id: string;
@@ -41,7 +42,7 @@ export default function HomeScreen() {
   }, [])
 );
 
-  const iniciarHome = async () => {
+  const iniciarHome = async (silencioso = false) => {
     try {
       const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
@@ -52,44 +53,66 @@ export default function HomeScreen() {
 
       const usuario = JSON.parse(usuarioGuardado);
       const usuarioId = usuario.id || usuario._id;
+      const eventosCacheados = getCached<Evento[]>("eventos:todos");
+      const categoriasCacheadas = getCached<Interes[]>("intereses:todos");
+      const recomendadosCacheados = usuarioId
+        ? getCached<Evento[]>(`eventos:recomendados:${usuarioId}`)
+        : null;
+
+      if (!silencioso && eventosCacheados) {
+        setEventos(eventosCacheados);
+        setCategorias(categoriasCacheadas || []);
+        setEventosRecomendados(recomendadosCacheados || []);
+        setLoading(false);
+      }
 
       const responseEventos = await fetch(`${API_URL}/api/eventos`);
       const dataEventos = await responseEventos.json();
 
       if (!responseEventos.ok) {
-        alert(dataEventos.message || dataEventos.error || "Error al traer eventos.");
+        if (!silencioso) {
+          alert(dataEventos.message || dataEventos.error || "Error al traer eventos.");
+        }
         return;
       }
 
       setEventos(dataEventos.eventos || []);
+      setCached("eventos:todos", dataEventos.eventos || []);
 
-      const responseCategorias = await fetch(`${API_URL}/api/intereses`);
-      const dataCategorias = await responseCategorias.json();
-
-      if (responseCategorias.ok) {
-        setCategorias(dataCategorias.intereses || []);
-      } else {
-        console.log("Error al traer categorías:", dataCategorias);
-      }
+      fetch(`${API_URL}/api/intereses`)
+        .then((response) => response.json().then((data) => ({ response, data })))
+        .then(({ response, data }) => {
+          if (response.ok) {
+            setCategorias(data.intereses || []);
+            setCached("intereses:todos", data.intereses || []);
+          } else {
+            console.log("Error al traer categorías:", data);
+          }
+        })
+        .catch((error) => console.log("Error al traer categorías:", error));
 
       if (usuarioId) {
-        const responseRecomendados = await fetch(
-          `${API_URL}/api/eventos/recomendados/${usuarioId}`
-        );
-
-        const dataRecomendados = await responseRecomendados.json();
-
-        if (responseRecomendados.ok) {
-          setEventosRecomendados(dataRecomendados.eventos || []);
-        } else {
-          console.log("Error al traer recomendados:", dataRecomendados);
-        }
+        fetch(`${API_URL}/api/eventos/recomendados/${usuarioId}`)
+          .then((response) => response.json().then((data) => ({ response, data })))
+          .then(({ response, data }) => {
+            if (response.ok) {
+              setEventosRecomendados(data.eventos || []);
+              setCached(`eventos:recomendados:${usuarioId}`, data.eventos || []);
+            } else {
+              console.log("Error al traer recomendados:", data);
+            }
+          })
+          .catch((error) => console.log("Error al traer recomendados:", error));
       }
     } catch (error) {
       console.log("Error al iniciar home:", error);
-      alert("No se pudo conectar con el servidor.");
+      if (!silencioso) {
+        alert("No se pudo conectar con el servidor.");
+      }
     } finally {
-      setLoading(false);
+      if (!silencioso) {
+        setLoading(false);
+      }
     }
   };
 

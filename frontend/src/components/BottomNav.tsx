@@ -1,6 +1,6 @@
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { router, usePathname } from "expo-router";
-import { Home, Search, Heart, Users, User } from "lucide-react-native";
+import { Bell, Home, Search, Heart, Users, User } from "lucide-react-native";
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -37,6 +37,14 @@ export default function BottomNav() {
           size={21}
           color={isActive("/connections") ? "#7B2DF0" : "#B8B8C2"}
           fill={isActive("/connections") ? "#7B2DF0" : "transparent"}
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.push("/notifications" as any)}>
+        <Bell
+          size={21}
+          color={isActive("/notifications") ? "#7B2DF0" : "#B8B8C2"}
+          fill={isActive("/notifications") ? "#7B2DF0" : "transparent"}
         />
       </TouchableOpacity>
 

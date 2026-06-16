@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   TextInput,
 } from "react-native";
-import { MessageCircle, Pencil, Trash2, Check, X } from "lucide-react-native";
+import { Check, MessageCircle, Pencil, Trash2, X } from "lucide-react-native";
 
-import UserAvatar from "../UserAvatar";
+import ProfileAvatarLink from "../ProfileAvatarLink";
+import ProfileTextLink from "../ProfileTextLink";
 import { Comentario } from "../../types/Social";
 import { Usuario } from "../../types/Usuario";
 
@@ -21,6 +22,7 @@ type Props = {
   onEnviarRespuesta: (comentarioPadreId: string) => void;
   onEditarComentario: (comentarioId: string, contenido: string) => void;
   onEliminarComentario: (comentarioId: string) => void;
+  depth?: number;
 };
 
 export default function CommentThread({
@@ -32,6 +34,7 @@ export default function CommentThread({
   onEnviarRespuesta,
   onEditarComentario,
   onEliminarComentario,
+  depth = 0,
 }: Props) {
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -85,102 +88,108 @@ export default function CommentThread({
   };
 
   return (
-    <View style={styles.threadContainer}>
-      <View style={styles.commentCard}>
-        <View style={styles.commentHeader}>
-          <UserAvatar usuario={usuarioComentario} size={34} />
+    <View style={[styles.threadContainer, depth > 0 && styles.replyThread]}>
+      <View style={styles.avatarColumn}>
+        <ProfileAvatarLink usuario={comentario.usuarioId} size={depth > 0 ? 32 : 40} />
+        {respuestas.length > 0 && <View style={styles.threadLine} />}
+      </View>
 
-          <View style={styles.commentUserInfo}>
-            <Text style={styles.commentUserName}>
-              {usuarioComentario?.nombre || "Usuario eliminado"}
-            </Text>
+      <View style={styles.contentColumn}>
+        <View style={styles.commentBubble}>
+          <View style={styles.commentHeader}>
+            <View style={styles.commentUserInfo}>
+              <ProfileTextLink usuario={comentario.usuarioId}>
+                <Text style={styles.commentUserName}>
+                  {usuarioComentario?.nombre || "Usuario eliminado"}
+                </Text>
+              </ProfileTextLink>
 
-            <Text style={styles.commentUsername}>
-              @{usuarioComentario?.nombreUsuario || "usuario_eliminado"}
-            </Text>
+              <ProfileTextLink usuario={comentario.usuarioId}>
+                <Text style={styles.commentMeta}>
+                  @{usuarioComentario?.nombreUsuario || "usuario_eliminado"} ·{" "}
+                  {formatearFecha(comentario.createdAt)}
+                </Text>
+              </ProfileTextLink>
+            </View>
 
-            <Text style={styles.commentDate}>
-              {formatearFecha(comentario.createdAt)}
-            </Text>
+            {esMiComentario && !editando && (
+              <View style={styles.commentActions}>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setTextoEditado(comentario.contenido || "");
+                    setEditando(true);
+                  }}
+                >
+                  <Pencil size={14} color="#7528F0" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.iconButton, styles.deleteButton]}
+                  activeOpacity={0.85}
+                  onPress={() => onEliminarComentario(comentario._id)}
+                >
+                  <Trash2 size={14} color="#E53935" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
-          {esMiComentario && !editando && (
-            <View style={styles.commentActions}>
-              <TouchableOpacity
-                style={styles.commentActionButton}
-                activeOpacity={0.85}
-                onPress={() => {
-                  setTextoEditado(comentario.contenido || "");
-                  setEditando(true);
-                }}
-              >
-                <Pencil size={14} color="#7528F0" />
-              </TouchableOpacity>
+          {editando ? (
+            <View style={styles.editCommentBox}>
+              <TextInput
+                style={styles.editCommentInput}
+                value={textoEditado}
+                onChangeText={setTextoEditado}
+                multiline
+                placeholder="Editar comentario..."
+                placeholderTextColor="#A7A7B0"
+              />
 
-              <TouchableOpacity
-                style={styles.commentDeleteButton}
-                activeOpacity={0.85}
-                onPress={() => onEliminarComentario(comentario._id)}
-              >
-                <Trash2 size={14} color="#E53935" />
-              </TouchableOpacity>
+              <View style={styles.editActions}>
+                <TouchableOpacity
+                  style={styles.cancelEditButton}
+                  activeOpacity={0.85}
+                  onPress={cancelarEdicion}
+                >
+                  <X size={14} color="#8D8A99" />
+                  <Text style={styles.cancelEditText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.saveEditButton}
+                  activeOpacity={0.85}
+                  onPress={guardarEdicion}
+                >
+                  <Check size={14} color="#FFFFFF" />
+                  <Text style={styles.saveEditText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+          ) : (
+            <Text style={styles.commentText}>{comentario.contenido}</Text>
+          )}
+
+          {!editando && !!usuarioComentario && (
+            <TouchableOpacity
+              style={styles.replyButton}
+              activeOpacity={0.85}
+              onPress={() => setMostrarRespuesta(!mostrarRespuesta)}
+            >
+              <MessageCircle size={15} color="#6F6D7A" />
+              <Text style={styles.replyButtonText}>
+                {mostrarRespuesta ? "Cancelar" : "Responder"}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
-
-        {editando ? (
-          <View style={styles.editCommentBox}>
-            <TextInput
-              style={styles.editCommentInput}
-              value={textoEditado}
-              onChangeText={setTextoEditado}
-              multiline
-              placeholder="Editar comentario..."
-              placeholderTextColor="#A7A7B0"
-            />
-
-            <View style={styles.editActions}>
-              <TouchableOpacity
-                style={styles.cancelEditButton}
-                activeOpacity={0.85}
-                onPress={cancelarEdicion}
-              >
-                <X size={14} color="#8D8A99" />
-                <Text style={styles.cancelEditText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.saveEditButton}
-                activeOpacity={0.85}
-                onPress={guardarEdicion}
-              >
-                <Check size={14} color="#FFFFFF" />
-                <Text style={styles.saveEditText}>Guardar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <Text style={styles.commentText}>{comentario.contenido}</Text>
-        )}
-
-        {!editando && !!usuarioComentario && (
-          <TouchableOpacity
-            style={styles.replyButton}
-            activeOpacity={0.85}
-            onPress={() => setMostrarRespuesta(!mostrarRespuesta)}
-          >
-            <MessageCircle size={14} color="#8B35E8" />
-            <Text style={styles.replyButtonText}>
-              {mostrarRespuesta ? "Cancelar respuesta" : "Responder"}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         {mostrarRespuesta && (
           <View style={styles.replyInputBox}>
             <TextInput
               style={styles.replyInput}
-              placeholder="Escribí una respuesta..."
+              placeholder="Responder en el hilo..."
               placeholderTextColor="#A7A7B0"
               value={respuestasTexto[comentario._id] || ""}
               onChangeText={(texto) => onChangeRespuesta(comentario._id, texto)}
@@ -204,115 +213,123 @@ export default function CommentThread({
             </TouchableOpacity>
           </View>
         )}
-      </View>
 
-      {respuestas.length > 0 && (
-        <View style={styles.repliesContainer}>
-          {respuestas.map((respuesta) => (
-            <CommentThread
-              key={respuesta._id}
-              comentario={respuesta}
-              comentarios={comentarios}
-              usuarioActualId={usuarioActualId}
-              respuestasTexto={respuestasTexto}
-              onChangeRespuesta={onChangeRespuesta}
-              onEnviarRespuesta={onEnviarRespuesta}
-              onEditarComentario={onEditarComentario}
-              onEliminarComentario={onEliminarComentario}
-            />
-          ))}
-        </View>
-      )}
+        {respuestas.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {respuestas.map((respuesta) => (
+              <CommentThread
+                key={respuesta._id}
+                comentario={respuesta}
+                comentarios={comentarios}
+                usuarioActualId={usuarioActualId}
+                respuestasTexto={respuestasTexto}
+                onChangeRespuesta={onChangeRespuesta}
+                onEnviarRespuesta={onEnviarRespuesta}
+                onEditarComentario={onEditarComentario}
+                onEliminarComentario={onEliminarComentario}
+                depth={depth + 1}
+              />
+            ))}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   threadContainer: {
-    marginBottom: 12,
+    flexDirection: "row",
+    marginBottom: 18,
   },
-  commentCard: {
+  replyThread: {
+    marginBottom: 14,
+  },
+  avatarColumn: {
+    width: 44,
+    alignItems: "center",
+  },
+  threadLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: "#E6DFF6",
+    marginTop: 8,
+    borderRadius: 2,
+  },
+  contentColumn: {
+    flex: 1,
+  },
+  commentBubble: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 22,
+    borderRadius: 20,
     padding: 14,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
   },
   commentHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   commentUserInfo: {
-    marginLeft: 10,
     flex: 1,
   },
   commentUserName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
     color: "#2D2934",
+    marginBottom: 2,
   },
-  commentUsername: {
+  commentMeta: {
     fontSize: 11,
-    color: "#8B35E8",
-    fontWeight: "800",
-    marginTop: 2,
-  },
-  commentDate: {
-    fontSize: 10,
     color: "#8D8A99",
     fontWeight: "700",
-    marginTop: 2,
   },
   commentActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    marginLeft: 8,
   },
-  commentActionButton: {
+  iconButton: {
     width: 30,
     height: 30,
-    borderRadius: 12,
+    borderRadius: 15,
     backgroundColor: "#F1ECFF",
     alignItems: "center",
     justifyContent: "center",
   },
-  commentDeleteButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 12,
+  deleteButton: {
     backgroundColor: "#FFF1F2",
-    alignItems: "center",
-    justifyContent: "center",
   },
   commentText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#332047",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   replyButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 12,
     alignSelf: "flex-start",
   },
   replyButtonText: {
-    marginLeft: 5,
-    color: "#8B35E8",
+    marginLeft: 6,
+    color: "#6F6D7A",
     fontSize: 12,
     fontWeight: "900",
   },
   replyInputBox: {
-    marginTop: 12,
-    backgroundColor: "#F7F5FF",
+    marginTop: 10,
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 10,
     borderWidth: 1,
     borderColor: "#E0D9F4",
   },
   replyInput: {
-    minHeight: 38,
-    fontSize: 13,
+    minHeight: 42,
+    fontSize: 14,
     color: "#332047",
     textAlignVertical: "top",
     outlineStyle: "none" as any,
@@ -322,8 +339,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     backgroundColor: "#8B35E8",
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
   replySendButtonDisabled: {
     opacity: 0.45,
@@ -334,20 +351,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   repliesContainer: {
-    marginLeft: 26,
-    marginTop: 10,
-    paddingLeft: 12,
-    borderLeftWidth: 2,
-    borderLeftColor: "#E0D9F4",
+    marginTop: 12,
   },
   editCommentBox: {
     marginTop: 4,
   },
   editCommentInput: {
-    minHeight: 58,
+    minHeight: 62,
     backgroundColor: "#F7F5FF",
     borderRadius: 16,
-    padding: 10,
+    padding: 11,
     fontSize: 14,
     color: "#332047",
     textAlignVertical: "top",

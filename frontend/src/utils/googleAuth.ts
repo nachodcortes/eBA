@@ -4,6 +4,14 @@ import * as AuthSession from "expo-auth-session";
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 export const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+export const GOOGLE_IOS_CLIENT_ID_CONFIGURED =
+  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+export const GOOGLE_IOS_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID;
+export const GOOGLE_ANDROID_CLIENT_ID_CONFIGURED =
+  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+export const GOOGLE_ANDROID_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID;
 export const GOOGLE_REDIRECT_URI = "https://auth.expo.io/@nattyy/eba";
 
 WebBrowser.maybeCompleteAuthSession();

@@ -1,5 +1,5 @@
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import UserAvatar from "../UserAvatar";
+import ProfileAvatarLink from "../ProfileAvatarLink";
 import { Usuario } from "../../types/Usuario";
 
 type Props = {
@@ -43,7 +43,11 @@ export default function CreatePublicationModal({
           </View>
 
           <View style={styles.tweetBox}>
-            <UserAvatar usuario={usuarioActual || ({ nombre: "Yo" } as Usuario)} size={42} />
+            <ProfileAvatarLink
+              usuario={usuarioActual || ({ nombre: "Yo" } as Usuario)}
+              size={42}
+              fallbackToProfile
+            />
 
             <TextInput
               style={styles.tweetInput}

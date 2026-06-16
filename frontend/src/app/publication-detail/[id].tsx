@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -23,8 +23,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../../config/api";
 import LoadingScreen from "../../components/LoadingScreen";
 import EmptyState from "../../components/EmptyState";
-import UserAvatar from "../../components/UserAvatar";
+import ProfileAvatarLink from "../../components/ProfileAvatarLink";
 import CommentThread from "../../components/comments/CommentThread";
+import useAutoRefresh from "../../hooks/useAutoRefresh";
 
 import { Usuario } from "../../types/Usuario";
 import { Publicacion, Comentario } from "../../types/Social";
@@ -67,8 +68,7 @@ export default function PublicationDetailScreen() {
       setUsuarioActual(usuario);
       setUsuarioActualId(idUsuario);
 
-      await cargarPublicacion();
-      await cargarComentarios();
+      await Promise.all([cargarPublicacion(), cargarComentarios()]);
     } catch (error) {
       console.log("Error al iniciar detalle publicación:", error);
       alert("No se pudo conectar con el servidor.");
@@ -110,6 +110,12 @@ export default function PublicationDetailScreen() {
       console.log("Error al cargar comentarios:", error);
     }
   };
+
+  useAutoRefresh(
+    useCallback(() => cargarComentarios(), [id]),
+    10000,
+    !loading
+  );
 
   const obtenerUsuarioSeguro = (usuario?: Usuario | string | null) => {
     if (!usuario || typeof usuario === "string") return null;
@@ -462,7 +468,7 @@ export default function PublicationDetailScreen() {
 
         <View style={styles.postCard}>
           <View style={styles.postHeader}>
-            <UserAvatar usuario={usuarioPublicacion} size={46} />
+            <ProfileAvatarLink usuario={usuarioPublicacion} size={46} />
 
             <View style={styles.postUserInfo}>
               <Text style={styles.postUserName}>
@@ -569,7 +575,7 @@ export default function PublicationDetailScreen() {
         <Text style={styles.sectionTitle}>Comentarios</Text>
 
         <View style={styles.mainCommentBox}>
-          <UserAvatar
+          <ProfileAvatarLink
             usuario={
               usuarioActual ||
               ({
@@ -578,6 +584,7 @@ export default function PublicationDetailScreen() {
               } as Usuario)
             }
             size={36}
+            fallbackToProfile
           />
 
           <TextInput

@@ -22,9 +22,11 @@ export default function FavoritesScreen() {
     cargarMisEventos();
   }, []);
 
-  const cargarMisEventos = async () => {
+  const cargarMisEventos = async (silencioso = false) => {
     try {
-      setLoading(true);
+      if (!silencioso) {
+        setLoading(true);
+      }
 
       const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
@@ -51,16 +53,22 @@ export default function FavoritesScreen() {
       console.log("Mis asistencias:", data);
 
       if (!response.ok) {
-        alert(data.error || data.message || "Error al traer tus eventos.");
+        if (!silencioso) {
+          alert(data.error || data.message || "Error al traer tus eventos.");
+        }
         return;
       }
 
       setAsistencias(data.asistencias || []);
     } catch (error) {
       console.log("Error al cargar mis eventos:", error);
-      alert("No se pudieron cargar tus eventos.");
+      if (!silencioso) {
+        alert("No se pudieron cargar tus eventos.");
+      }
     } finally {
-      setLoading(false);
+      if (!silencioso) {
+        setLoading(false);
+      }
     }
   };
 
