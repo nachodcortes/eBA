@@ -240,32 +240,35 @@ router.get("/pendientes/:usuarioId", async (req, res) => {
 });
 
 /*
-GET /api/solicitudes-conexion/pendientes/:usuarioId
-Obtener solicitudes pendientes enviadas o recibidas por un usuario
+DELETE /api/solicitudes-conexion/:id
+Cancelar una solicitud pendiente enviada
 */
-router.get("/pendientes/:usuarioId", async (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
-    const { usuarioId } = req.params;
+    const solicitud = await SolicitudConexion.findById(req.params.id);
 
-    const solicitudes = await SolicitudConexion.find({
-      estado: "pendiente",
-      $or: [
-        { usuariosolicitante: usuarioId },
-        { usuarioreceptor: usuarioId },
-      ],
-    })
-      .populate("usuariosolicitante")
-      .populate("usuarioreceptor");
+    if (!solicitud) {
+      return res.status(404).json({
+        mensaje: "Solicitud no encontrada",
+      });
+    }
+
+    if (solicitud.estado !== "pendiente") {
+      return res.status(400).json({
+        mensaje: "La solicitud ya fue procesada",
+      });
+    }
+
+    await SolicitudConexion.findByIdAndDelete(req.params.id);
 
     res.json({
-      mensaje: "Solicitudes pendientes obtenidas correctamente",
-      solicitudes,
+      mensaje: "Solicitud cancelada correctamente",
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
-      mensaje: "Error al obtener solicitudes pendientes",
+      mensaje: "Error al cancelar solicitud",
     });
   }
 });

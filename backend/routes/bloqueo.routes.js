@@ -4,7 +4,6 @@ const router = express.Router();
 const Bloqueo = require("../models/Bloqueo");
 const Conexion = require("../models/Conexion");
 const Chat = require("../models/Chat");
-const Mensaje = require("../models/Mensaje");
 
 
 // Crear bloqueo
@@ -40,52 +39,10 @@ router.post("/", async (req, res) => {
       motivo,
     });
 
-    const conexionesEliminadas = await Conexion.find({
-      $or: [
-        {
-          usuario1: bloqueadorId,
-          usuario2: bloqueadoId,
-        },
-        {
-          usuario1: bloqueadoId,
-          usuario2: bloqueadorId,
-        },
-      ],
-    });
-
-    const idsConexiones = conexionesEliminadas.map((conexion) => conexion._id);
-
-    const chatsEliminados = await Chat.find({
-      $or: [
-        {
-          conexionId: { $in: idsConexiones },
-        },
-        {
-          participantes: { $all: [bloqueadorId, bloqueadoId] },
-        },
-      ],
-    });
-
-    const idsChats = chatsEliminados.map((chat) => chat._id);
-
-    await Mensaje.deleteMany({
-      chatId: { $in: idsChats },
-    });
-
-    await Chat.deleteMany({
-      _id: { $in: idsChats },
-    });
-
-    await Conexion.deleteMany({
-      _id: { $in: idsConexiones },
-    });
-
     res.status(201).json({
       message:
         "Usuario bloqueado correctamente",
       bloqueo,
-      conexionesEliminadas: idsConexiones.length,
-      chatsEliminados: idsChats.length,
     });
 
   } catch (error) {
@@ -164,8 +121,61 @@ router.delete(
         });
       }
 
+      const bloqueoRestante = await Bloqueo.findOne({
+        $or: [
+          {
+            bloqueadorId: req.params.bloqueadorId,
+            bloqueadoId: req.params.bloqueadoId,
+          },
+          {
+            bloqueadorId: req.params.bloqueadoId,
+            bloqueadoId: req.params.bloqueadorId,
+          },
+        ],
+      });
+
+      let conexion = null;
+      let chat = null;
+
+      if (!bloqueoRestante) {
+        conexion = await Conexion.findOne({
+          $or: [
+            {
+              usuario1: req.params.bloqueadorId,
+              usuario2: req.params.bloqueadoId,
+            },
+            {
+              usuario1: req.params.bloqueadoId,
+              usuario2: req.params.bloqueadorId,
+            },
+          ],
+        });
+
+        if (!conexion) {
+          conexion = await Conexion.create({
+            usuario1: req.params.bloqueadorId,
+            usuario2: req.params.bloqueadoId,
+          });
+        }
+
+        chat = await Chat.findOne({
+          participantes: {
+            $all: [req.params.bloqueadorId, req.params.bloqueadoId],
+          },
+        });
+
+        if (!chat) {
+          chat = await Chat.create({
+            conexionId: conexion._id,
+            participantes: [req.params.bloqueadorId, req.params.bloqueadoId],
+          });
+        }
+      }
+
       res.json({
         message: "Usuario desbloqueado correctamente",
+        conexionRestaurada: !!conexion,
+        chatRestaurado: !!chat,
       });
 
     } catch (error) {
