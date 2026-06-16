@@ -16,6 +16,7 @@ import {
   Search,
   UserPlus,
   Clock3,
+  Users,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -24,6 +25,7 @@ import LoadingScreen from "../../components/LoadingScreen";
 import EmptyState from "../../components/EmptyState";
 import ProfileAvatarLink from "../../components/ProfileAvatarLink";
 import SectionHeader from "../../components/SectionHeader";
+import BottomNav from "../../components/BottomNav";
 import useAutoRefresh from "../../hooks/useAutoRefresh";
 
 import CreatePublicationModal from "../../components/publications/CreatePublicationModal";
@@ -57,7 +59,7 @@ type SolicitudConexion = {
 };
 
 export default function EventPeopleScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, returnToHome } = useLocalSearchParams();
 
   const [evento, setEvento] = useState<Evento | null>(null);
   const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
@@ -66,6 +68,7 @@ export default function EventPeopleScreen() {
   const [solicitudesPendientesIds, setSolicitudesPendientesIds] = useState<
     string[]
   >([]);
+  const [bloqueadosIds, setBloqueadosIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [loadingPersonas, setLoadingPersonas] = useState(true);
@@ -73,7 +76,7 @@ export default function EventPeopleScreen() {
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
 
   const [tabActiva, setTabActiva] = useState<
-    "personas" | "publicaciones" | "info"
+    "personas" | "publicaciones" | "chat"
   >("personas");
 
   const [busquedaPersonas, setBusquedaPersonas] = useState("");
@@ -168,6 +171,9 @@ export default function EventPeopleScreen() {
       const responseSolicitudesPromise = fetch(
         `${API_URL}/api/solicitudes-conexion/pendientes/${idUsuario}`
       );
+      const responseBloqueosPromise = fetch(
+        `${API_URL}/api/bloqueos/usuario/${idUsuario}`
+      );
 
       const cargarAsistenciasRequest = responseAsistenciasPromise
         .then(async (responseAsistencias) => {
@@ -250,6 +256,24 @@ export default function EventPeopleScreen() {
           console.log("Error cargando solicitudes:", error);
         });
 
+      const cargarBloqueosRequest = responseBloqueosPromise
+        .then(async (responseBloqueos) => {
+          const dataBloqueos = await responseBloqueos.json();
+
+          if (responseBloqueos.ok) {
+            const ids = (dataBloqueos.bloqueos || [])
+              .map((bloqueo: { bloqueadoId: Usuario | string }) =>
+                obtenerUsuarioId(bloqueo.bloqueadoId)
+              )
+              .filter(Boolean) as string[];
+
+            setBloqueadosIds(ids);
+          }
+        })
+        .catch((error) => {
+          console.log("Error cargando bloqueos:", error);
+        });
+
       const responseEvento = await responseEventoPromise;
       const dataEvento = await responseEvento.json();
 
@@ -272,6 +296,7 @@ export default function EventPeopleScreen() {
         cargarAsistenciasRequest,
         cargarConexionesRequest,
         cargarSolicitudesRequest,
+        cargarBloqueosRequest,
       ]);
 
       cargarPublicaciones(eventoId, silencioso);
@@ -457,12 +482,21 @@ export default function EventPeopleScreen() {
     }
   };
 
-  const abrirPerfilUsuario = (usuarioId?: string) => {
+  const abrirPerfilUsuario = (usuarioId?: string | null) => {
     if (!usuarioId) return;
     router.push(`/user-profile/${usuarioId}` as any);
   };
 
-  const obtenerConexionConUsuario = (usuarioId?: string) => {
+  const volver = () => {
+    if (returnToHome === "1") {
+      router.replace("/home" as any);
+      return;
+    }
+
+    router.back();
+  };
+
+  const obtenerConexionConUsuario = (usuarioId?: string | null) => {
     if (!usuarioId) return null;
 
     return (
@@ -475,7 +509,10 @@ export default function EventPeopleScreen() {
     );
   };
 
-  const abrirChat = async (conexion: Conexion, usuarioConexionId?: string) => {
+  const abrirChat = async (
+    conexion: Conexion,
+    usuarioConexionId?: string | null
+  ) => {
     try {
       if (!usuarioActualId || !usuarioConexionId) return;
 
@@ -514,7 +551,7 @@ export default function EventPeopleScreen() {
     }
   };
 
-  const enviarSolicitudConexion = async (usuarioReceptorId?: string) => {
+  const enviarSolicitudConexion = async (usuarioReceptorId?: string | null) => {
     try {
       const usuarioGuardado = await AsyncStorage.getItem("usuario");
 
@@ -574,8 +611,10 @@ export default function EventPeopleScreen() {
     return nombre.charAt(0).toUpperCase();
   };
 
-  const obtenerUsuarioId = (usuario?: Usuario) => {
-    return usuario?._id || usuario?.id;
+  const obtenerUsuarioId = (usuario?: Usuario | string | null) => {
+    if (!usuario) return null;
+    if (typeof usuario === "string") return usuario;
+    return usuario._id || usuario.id;
   };
 
   const obtenerIdsConexiones = (
@@ -596,12 +635,12 @@ export default function EventPeopleScreen() {
       .filter(Boolean) as string[];
   };
 
-  const esAmigo = (usuarioId?: string) => {
+  const esAmigo = (usuarioId?: string | null) => {
     if (!usuarioId) return false;
     return conexionesIds.includes(usuarioId);
   };
 
-  const tieneSolicitudPendiente = (usuarioId?: string) => {
+  const tieneSolicitudPendiente = (usuarioId?: string | null) => {
     if (!usuarioId) return false;
     return solicitudesPendientesIds.includes(usuarioId);
   };
@@ -618,7 +657,7 @@ export default function EventPeopleScreen() {
 
   const asistenciasFiltradas = asistencias.filter((asistencia) => {
     const idUsuario = obtenerUsuarioId(asistencia.usuarioId);
-    return idUsuario !== usuarioActualId;
+    return idUsuario !== usuarioActualId && !bloqueadosIds.includes(idUsuario || "");
   });
 
   const personasFiltradas = asistenciasFiltradas.filter((asistencia) => {
@@ -663,11 +702,11 @@ export default function EventPeopleScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={volver}>
           <ArrowLeft size={22} color="#332047" />
         </TouchableOpacity>
 
-        <View style={styles.header}>
+        <View style={styles.headerCard}>
           <Image
             source={{ uri: obtenerImagen(evento.imagen) }}
             style={styles.eventImage}
@@ -683,7 +722,7 @@ export default function EventPeopleScreen() {
             <Text style={styles.eventLocation}>{obtenerUbicacionEvento()}</Text>
 
             <View style={styles.avatarRow}>
-              {asistenciasFiltradas.slice(0, 3).map((asistencia, index) => (
+              {asistenciasFiltradas.slice(0, 5).map((asistencia, index) => (
                 <TouchableOpacity
                   key={asistencia._id}
                   style={[styles.smallAvatar, index > 0 && styles.avatarOverlap]}
@@ -702,9 +741,37 @@ export default function EventPeopleScreen() {
                 <Plus size={13} color="#FFFFFF" />
               </View>
 
-              <Text style={styles.moreText}>+{asistenciasFiltradas.length}</Text>
+              <Text style={styles.moreText}>
+                +{asistenciasFiltradas.length} personas
+              </Text>
             </View>
           </View>
+        </View>
+
+        <View style={styles.quickActions}>
+          <View style={styles.quickActionCard}>
+            <Users size={20} color="#6D28E8" />
+            <Text style={styles.quickActionNumber}>
+              {asistenciasFiltradas.length}
+            </Text>
+            <Text style={styles.quickActionLabel}>van</Text>
+          </View>
+
+          <View style={styles.quickActionCard}>
+            <MessageCircle size={20} color="#6D28E8" />
+            <Text style={styles.quickActionNumber}>{publicaciones.length}</Text>
+            <Text style={styles.quickActionLabel}>posts</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            activeOpacity={0.85}
+            onPress={() => router.push("/chats" as any)}
+          >
+            <MessageCircle size={20} color="#6D28E8" />
+            <Text style={styles.quickActionNumber}>Chat</Text>
+            <Text style={styles.quickActionLabel}>grupal</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.tabsCard}>
@@ -737,13 +804,13 @@ export default function EventPeopleScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, tabActiva === "info" && styles.tabActive]}
-            onPress={() => setTabActiva("info")}
+            style={[styles.tab, tabActiva === "chat" && styles.tabActive]}
+            onPress={() => setTabActiva("chat")}
           >
             <Text
-              style={[styles.tabText, tabActiva === "info" && styles.tabTextActive]}
+              style={[styles.tabText, tabActiva === "chat" && styles.tabTextActive]}
             >
-              Info
+              Chat grupal
             </Text>
           </TouchableOpacity>
         </View>
@@ -878,7 +945,12 @@ export default function EventPeopleScreen() {
                 text="Sé la primera persona en publicar algo sobre este evento."
               />
             ) : (
-              publicaciones.map((publicacion) => {
+              publicaciones
+                .filter((publicacion) => {
+                  const autorId = obtenerUsuarioId(publicacion.usuarioId as any);
+                  return !autorId || !bloqueadosIds.includes(autorId);
+                })
+                .map((publicacion) => {
                 const comentarios = comentariosPorPublicacion[publicacion._id] || [];
 
                 return (
@@ -898,9 +970,28 @@ export default function EventPeopleScreen() {
           </View>
         )}
 
-        {tabActiva === "info" && (
+        {tabActiva === "chat" && (
           <View style={styles.infoCard}>
-            <SectionHeader title="Información del evento" />
+            <SectionHeader title="Chat grupal" />
+
+            <View style={styles.groupChatHero}>
+              <MessageCircle size={26} color="#FFFFFF" />
+            </View>
+
+            <Text style={styles.chatTitle}>Coordiná con quienes van</Text>
+
+            <Text style={styles.infoText}>
+              Usá tus conversaciones para organizar punto de encuentro,
+              horarios y planes antes del evento.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.openChatButton}
+              activeOpacity={0.85}
+              onPress={() => router.push("/chats" as any)}
+            >
+              <Text style={styles.openChatButtonText}>Ir a chats</Text>
+            </TouchableOpacity>
 
             <Text style={styles.infoLabel}>Descripción</Text>
             <Text style={styles.infoText}>
@@ -927,6 +1018,8 @@ export default function EventPeopleScreen() {
         }}
         onPublish={crearPublicacion}
       />
+
+      <BottomNav />
     </View>
   );
 }
@@ -939,7 +1032,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 26,
     paddingTop: 58,
-    paddingBottom: 60,
+    paddingBottom: 140,
   },
   backButton: {
     width: 38,
@@ -949,14 +1042,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 18,
   },
-  header: {
+  headerCard: {
     flexDirection: "row",
-    marginBottom: 28,
+    marginBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
   },
   eventImage: {
-    width: 98,
-    height: 78,
-    borderRadius: 12,
+    width: 104,
+    height: 96,
+    borderRadius: 18,
     marginRight: 18,
   },
   headerInfo: {
@@ -964,7 +1062,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   eventTitle: {
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: "900",
     color: "#2D2934",
     marginBottom: 6,
@@ -1018,6 +1116,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#2D2934",
     fontWeight: "700",
+  },
+  quickActions: {
+    flexDirection: "row",
+    marginBottom: 18,
+  },
+  quickActionCard: {
+    flex: 1,
+    minHeight: 76,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  quickActionNumber: {
+    marginTop: 5,
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#2D2934",
+  },
+  quickActionLabel: {
+    marginTop: 1,
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#8D8A99",
   },
   tabsCard: {
     height: 46,
@@ -1192,6 +1317,35 @@ const styles = StyleSheet.create({
     padding: 22,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.04)",
+  },
+  groupChatHero: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: "#6D28E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  chatTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#2D2934",
+    marginBottom: 8,
+  },
+  openChatButton: {
+    height: 48,
+    borderRadius: 18,
+    backgroundColor: "#6D28E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  openChatButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
   },
   infoLabel: {
     fontSize: 13,

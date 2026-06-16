@@ -20,26 +20,51 @@ import {
   AtSign,
   Settings,
   Trash2,
+  ShieldOff,
+  Unlock,
+  Bookmark,
+  MessageSquare,
   ChevronDown,
   ChevronUp,
   X,
 } from "lucide-react-native";
 
 import BottomNav from "../components/BottomNav";
-import Logo from "../components/Logo";
 import LoadingScreen from "../components/LoadingScreen";
 import UserAvatar from "../components/UserAvatar";
 import SectionHeader from "../components/SectionHeader";
+import EventListCard from "../components/EventListCard";
+import PublicationPreviewCard from "../components/publications/PublicationPreviewCard";
 
 import { Usuario } from "../types/Usuario";
+import { Asistencia } from "../types/Asistencia";
+import { Evento } from "../types/Evento";
+import { Publicacion } from "../types/Social";
+
+type Bloqueo = {
+  _id: string;
+  bloqueadoId: Usuario;
+};
+
+type Favorito = {
+  _id: string;
+  eventoId: Evento;
+};
+
+type PerfilTab = "asistidos" | "guardados" | "publicaciones";
 
 export default function ProfileScreen() {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
+  const [favoritos, setFavoritos] = useState<Favorito[]>([]);
+  const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
+  const [bloqueos, setBloqueos] = useState<Bloqueo[]>([]);
   const [loading, setLoading] = useState(true);
   const [mostrarConfiguracion, setMostrarConfiguracion] = useState(false);
   const [mostrarConfirmacionEliminar, setMostrarConfirmacionEliminar] =
     useState(false);
   const [eliminandoCuenta, setEliminandoCuenta] = useState(false);
+  const [tabActiva, setTabActiva] = useState<PerfilTab>("asistidos");
 
   useFocusEffect(
     useCallback(() => {
@@ -59,7 +84,47 @@ export default function ProfileScreen() {
       }
 
       const usuarioParseado = JSON.parse(usuarioGuardado);
+      const usuarioId = usuarioParseado.id || usuarioParseado._id;
+
       setUsuario(usuarioParseado);
+
+      if (usuarioId) {
+        const [
+          responseAsistencias,
+          responseFavoritos,
+          responsePublicaciones,
+          responseBloqueos,
+        ] = await Promise.all([
+          fetch(`${API_URL}/api/asistencias/usuario/${usuarioId}`),
+          fetch(`${API_URL}/api/favoritos/usuario/${usuarioId}`),
+          fetch(`${API_URL}/api/publicaciones/usuario/${usuarioId}`),
+          fetch(`${API_URL}/api/bloqueos/usuario/${usuarioId}`),
+        ]);
+
+        const dataAsistencias = await responseAsistencias.json();
+
+        if (responseAsistencias.ok) {
+          setAsistencias(dataAsistencias.asistencias || []);
+        }
+
+        const dataFavoritos = await responseFavoritos.json();
+
+        if (responseFavoritos.ok) {
+          setFavoritos(dataFavoritos.favoritos || []);
+        }
+
+        const dataPublicaciones = await responsePublicaciones.json();
+
+        if (responsePublicaciones.ok) {
+          setPublicaciones(dataPublicaciones.publicaciones || []);
+        }
+
+        const dataBloqueos = await responseBloqueos.json();
+
+        if (responseBloqueos.ok) {
+          setBloqueos(dataBloqueos.bloqueos || []);
+        }
+      }
     } catch (error) {
       console.log("Error al cargar usuario:", error);
       router.replace("/login" as any);
@@ -137,6 +202,71 @@ export default function ProfileScreen() {
     }
   };
 
+  const obtenerUsuarioId = (item?: Usuario | null) => {
+    return item?.id || item?._id || null;
+  };
+
+  const desbloquearUsuario = async (bloqueo: Bloqueo) => {
+    try {
+      const bloqueadorId = obtenerUsuarioId(usuario);
+      const bloqueadoId = obtenerUsuarioId(bloqueo.bloqueadoId);
+
+      if (!bloqueadorId || !bloqueadoId) return;
+
+      const response = await fetch(
+        `${API_URL}/api/bloqueos/${bloqueadorId}/${bloqueadoId}`,
+        { method: "DELETE" }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo desbloquear al usuario.");
+        return;
+      }
+
+      await cargarUsuario();
+    } catch (error) {
+      console.log("Error desbloqueando usuario:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const irAEvento = (eventoId?: string) => {
+    if (!eventoId) return;
+    router.push(`/event-people/${eventoId}` as any);
+  };
+
+  const obtenerTextoEstado = (estado?: string) => {
+    if (estado === "confirmado") return "Confirmado";
+    if (estado === "cancelado") return "Cancelado";
+    return "Interesado";
+  };
+
+  const sacarFavorito = async (favoritoId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/favoritos/${favoritoId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo sacar de guardados.");
+        return;
+      }
+
+      setFavoritos((prev) => prev.filter((favorito) => favorito._id !== favoritoId));
+    } catch (error) {
+      console.log("Error eliminando favorito:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const eventosActivos = asistencias.filter(
+    (asistencia) => asistencia.estado !== "cancelado"
+  );
+
   if (loading) {
     return <LoadingScreen text="Cargando perfil..." />;
   }
@@ -147,101 +277,192 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
       >
-        <Logo size="medium" />
+        <View style={styles.profileHero}>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.heroLogo}>eBA</Text>
 
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mi perfil</Text>
+            <TouchableOpacity
+              style={styles.heroIconButton}
+              activeOpacity={0.85}
+              onPress={irAEditarPerfil}
+            >
+              <Pencil size={18} color="#6D28E8" />
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={styles.editButton}
-            activeOpacity={0.85}
-            onPress={irAEditarPerfil}
-          >
-            <Pencil size={18} color="#7528F0" />
-          </TouchableOpacity>
-        </View>
+          <UserAvatar usuario={usuario || undefined} size={104} />
 
-        <View style={styles.profileCard}>
-          <UserAvatar usuario={usuario || undefined} size={112} />
-
-          <Text style={styles.name}>
+          <Text style={styles.heroName}>
             {usuario?.nombre || "Usuario"}
             {usuario?.edad ? `, ${usuario.edad}` : ""}
           </Text>
 
-          <Text style={styles.username}>
+          <Text style={styles.heroUsername}>
             @{usuario?.nombreUsuario || "usuario"}
           </Text>
 
-          <Text style={styles.bio}>
-            {usuario?.bio || "Todavía no agregaste una bio."}
+          <Text style={styles.heroBio}>
+            {usuario?.bio || "Apasionada por los eventos y las buenas conexiones."}
           </Text>
+
+          <TouchableOpacity
+            style={styles.heroEditButton}
+            activeOpacity={0.85}
+            onPress={irAEditarPerfil}
+          >
+            <Text style={styles.heroEditButtonText}>Editar perfil</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.infoCard}>
-          <SectionHeader title="Información personal" />
-
-          <View style={styles.infoRow}>
-            <View style={styles.iconBox}>
-              <AtSign size={20} color="#7528F0" />
-            </View>
-
-            <View style={styles.infoTextBox}>
-              <Text style={styles.infoLabel}>Nombre de usuario</Text>
-              <Text style={styles.infoValue}>
-                @{usuario?.nombreUsuario || "usuario"}
-              </Text>
-            </View>
+        <View style={styles.profileStats}>
+          <View style={styles.profileStatItem}>
+            <Text style={styles.profileStatNumber}>{eventosActivos.length}</Text>
+            <Text style={styles.profileStatLabel}>asistidos</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <View style={styles.iconBox}>
-              <Mail size={20} color="#7528F0" />
-            </View>
+          <View style={styles.profileStatDivider} />
 
-            <View style={styles.infoTextBox}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>
-                {usuario?.email || "Sin email cargado"}
-              </Text>
-            </View>
+          <View style={styles.profileStatItem}>
+            <Text style={styles.profileStatNumber}>{favoritos.length}</Text>
+            <Text style={styles.profileStatLabel}>guardados</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <View style={styles.iconBox}>
-              <Calendar size={20} color="#7528F0" />
-            </View>
+          <View style={styles.profileStatDivider} />
 
-            <View style={styles.infoTextBox}>
-              <Text style={styles.infoLabel}>Edad</Text>
-              <Text style={styles.infoValue}>
-                {usuario?.edad ? `${usuario.edad} años` : "Sin edad cargada"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <View style={styles.iconBox}>
-              <MapPin size={20} color="#7528F0" />
-            </View>
-
-            <View style={styles.infoTextBox}>
-              <Text style={styles.infoLabel}>Ubicación</Text>
-              <Text style={styles.infoValue}>
-                {usuario?.ubicacionAproximada || "Sin ubicación cargada"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoTextBox}>
-              <Text style={styles.infoLabel}>Instagram</Text>
-              <Text style={styles.infoValue}>
-                {usuario?.instagram || "No agregado"}
-              </Text>
-            </View>
+          <View style={styles.profileStatItem}>
+            <Text style={styles.profileStatNumber}>{publicaciones.length}</Text>
+            <Text style={styles.profileStatLabel}>publis</Text>
           </View>
         </View>
+
+        <View style={styles.profileTabs}>
+          <TouchableOpacity
+            style={[styles.profileTab, tabActiva === "asistidos" && styles.profileTabActive]}
+            activeOpacity={0.85}
+            onPress={() => setTabActiva("asistidos")}
+          >
+            <Calendar size={15} color={tabActiva === "asistidos" ? "#FFFFFF" : "#6D28E8"} />
+            <Text
+              style={[
+                styles.profileTabText,
+                tabActiva === "asistidos" && styles.profileTabTextActive,
+              ]}
+            >
+              Asistidos
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.profileTab, tabActiva === "guardados" && styles.profileTabActive]}
+            activeOpacity={0.85}
+            onPress={() => setTabActiva("guardados")}
+          >
+            <Bookmark size={15} color={tabActiva === "guardados" ? "#FFFFFF" : "#6D28E8"} />
+            <Text
+              style={[
+                styles.profileTabText,
+                tabActiva === "guardados" && styles.profileTabTextActive,
+              ]}
+            >
+              Guardados
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.profileTab,
+              tabActiva === "publicaciones" && styles.profileTabActive,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => setTabActiva("publicaciones")}
+          >
+            <MessageSquare
+              size={15}
+              color={tabActiva === "publicaciones" ? "#FFFFFF" : "#6D28E8"}
+            />
+            <Text
+              style={[
+                styles.profileTabText,
+                tabActiva === "publicaciones" && styles.profileTabTextActive,
+              ]}
+            >
+              Publicaciones
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {tabActiva === "asistidos" && (
+          <View style={styles.eventsBlock}>
+            {eventosActivos.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Todavía no marcaste eventos con “Quiero ir”.
+              </Text>
+            ) : (
+              eventosActivos.slice(0, 4).map((asistencia) => {
+                const evento = asistencia.eventoId as Evento;
+
+                if (!evento) return null;
+
+                return (
+                  <EventListCard
+                    key={asistencia._id}
+                    evento={evento}
+                    status={obtenerTextoEstado(asistencia.estado)}
+                    onPress={() => irAEvento(evento._id)}
+                  />
+                );
+              })
+            )}
+          </View>
+        )}
+
+        {tabActiva === "guardados" && (
+          <View style={styles.eventsBlock}>
+            {favoritos.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Todavía no guardaste eventos. Tocá el corazón en Explorar.
+              </Text>
+            ) : (
+              favoritos.map((favorito) => {
+                const evento = favorito.eventoId as Evento;
+
+                if (!evento) return null;
+
+                return (
+                  <EventListCard
+                    key={favorito._id}
+                    evento={evento}
+                    status="Guardado"
+                    showRemove
+                    onRemovePress={() => sacarFavorito(favorito._id)}
+                    onPress={() => irAEvento(evento._id)}
+                  />
+                );
+              })
+            )}
+          </View>
+        )}
+
+        {tabActiva === "publicaciones" && (
+          <View style={styles.eventsBlock}>
+            {publicaciones.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Todavía no hiciste publicaciones en eventos.
+              </Text>
+            ) : (
+              publicaciones.map((publicacion) => (
+                <PublicationPreviewCard
+                  key={publicacion._id}
+                  publicacion={publicacion}
+                  comentariosCount={publicacion.comentariosCount || 0}
+                  onPress={() =>
+                    router.push(`/publication-detail/${publicacion._id}` as any)
+                  }
+                />
+              ))
+            )}
+          </View>
+        )}
 
         <View style={styles.infoCard}>
           <SectionHeader title="Tus intereses" />
@@ -282,6 +503,44 @@ export default function ProfileScreen() {
 
           {mostrarConfiguracion && (
             <View style={styles.settingsDropdown}>
+              <View style={styles.blockedHeader}>
+                <ShieldOff size={18} color="#7528F0" />
+                <Text style={styles.blockedTitle}>Personas bloqueadas</Text>
+              </View>
+
+              {bloqueos.length === 0 ? (
+                <Text style={styles.blockedEmpty}>
+                  No tenés usuarios bloqueados.
+                </Text>
+              ) : (
+                bloqueos.map((bloqueo) => (
+                  <View key={bloqueo._id} style={styles.blockedRow}>
+                    <View style={styles.blockedAvatar}>
+                      <Text style={styles.blockedAvatarText}>
+                        {(bloqueo.bloqueadoId?.nombre || "U").charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+
+                    <View style={styles.blockedInfo}>
+                      <Text style={styles.blockedName}>
+                        {bloqueo.bloqueadoId?.nombre || "Usuario"}
+                      </Text>
+                      <Text style={styles.blockedDetail}>
+                        {bloqueo.bloqueadoId?.email || "Bloqueado"}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.unblockButton}
+                      activeOpacity={0.85}
+                      onPress={() => desbloquearUsuario(bloqueo)}
+                    >
+                      <Unlock size={16} color="#7528F0" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+
               <TouchableOpacity
                 style={styles.deleteAccountButton}
                 activeOpacity={0.85}
@@ -372,9 +631,136 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4F6FB",
   },
   container: {
-    paddingHorizontal: 28,
-    paddingTop: 70,
+    paddingHorizontal: 22,
+    paddingTop: 58,
     paddingBottom: 150,
+  },
+  profileHero: {
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    padding: 18,
+    alignItems: "center",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
+  },
+  heroTopRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  heroLogo: {
+    color: "#6D28E8",
+    fontSize: 30,
+    fontWeight: "900",
+  },
+  heroIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "#F1ECFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroName: {
+    marginTop: 12,
+    fontSize: 23,
+    fontWeight: "900",
+    color: "#332047",
+    textAlign: "center",
+  },
+  heroUsername: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#6D28E8",
+  },
+  heroBio: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "700",
+    color: "#7B7785",
+    textAlign: "center",
+  },
+  heroEditButton: {
+    height: 36,
+    borderRadius: 14,
+    backgroundColor: "#6D28E8",
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  heroEditButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  profileStats: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
+    marginBottom: 14,
+  },
+  profileStatItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  profileStatNumber: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#332047",
+  },
+  profileStatLabel: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#8D8A99",
+  },
+  profileStatDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: "#EEEAF7",
+  },
+  profileTabs: {
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
+    padding: 4,
+    flexDirection: "row",
+    marginBottom: 14,
+  },
+  profileTab: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  profileTabActive: {
+    backgroundColor: "#6D28E8",
+  },
+  profileTabText: {
+    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#6D28E8",
+  },
+  profileTabTextActive: {
+    color: "#FFFFFF",
+  },
+  eventsBlock: {
+    marginBottom: 4,
   },
   header: {
     flexDirection: "row",
@@ -516,11 +902,72 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#F3D0D0",
+    borderColor: "#E8E2F8",
+  },
+  blockedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  blockedTitle: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#332047",
+  },
+  blockedEmpty: {
+    color: "#8D8A99",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 12,
+  },
+  blockedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1ECFF",
+  },
+  blockedAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#F1ECFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  blockedAvatarText: {
+    color: "#7528F0",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  blockedInfo: {
+    flex: 1,
+  },
+  blockedName: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#2D2934",
+  },
+  blockedDetail: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#8D8A99",
+  },
+  unblockButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1ECFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   deleteAccountButton: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 8,
     paddingVertical: 12,
     paddingHorizontal: 10,
   },

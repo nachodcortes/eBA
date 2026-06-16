@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, Send } from "lucide-react-native";
+import { ArrowLeft, Send, Shield } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../../config/api";
@@ -42,6 +42,13 @@ export default function ChatDetailScreen() {
   const [texto, setTexto] = useState("");
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  const scrollAlFinal = (animado = true) => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: animado });
+    });
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -87,6 +94,7 @@ export default function ChatDetailScreen() {
 
       if (responseMensajes.ok) {
         setMensajes(dataMensajes.mensajes || []);
+        scrollAlFinal(false);
       }
     } catch (error) {
       console.log("Error iniciando chat:", error);
@@ -102,8 +110,13 @@ export default function ChatDetailScreen() {
 
     if (response.ok) {
       setMensajes(data.mensajes || []);
+      scrollAlFinal(true);
     }
   };
+
+  useEffect(() => {
+    scrollAlFinal(true);
+  }, [mensajes.length]);
 
   useAutoRefresh(
     useCallback(() => {
@@ -161,6 +174,7 @@ export default function ChatDetailScreen() {
         },
       ]);
       setTexto("");
+      scrollAlFinal(true);
     } catch (error) {
       console.log("Error enviando mensaje:", error);
       alert("No se pudo conectar con el servidor.");
@@ -194,17 +208,27 @@ export default function ChatDetailScreen() {
           <ArrowLeft size={22} color="#332047" />
         </TouchableOpacity>
 
-        <ProfileAvatarLink usuario={otroUsuario} size={42} />
+        <View style={styles.headerAvatarBox}>
+          <ProfileAvatarLink usuario={otroUsuario} size={44} />
+          <View style={styles.headerOnlineDot} />
+        </View>
 
         <View style={styles.headerText}>
           <Text style={styles.title}>{otroUsuario?.nombre || "Chat"}</Text>
-          <Text style={styles.subtitle}>Conexión activa</Text>
+          <Text style={styles.subtitle}>Conexión activa · respondé cuando quieras</Text>
+        </View>
+
+        <View style={styles.secureIcon}>
+          <Shield size={18} color="#6D28E8" />
         </View>
       </View>
 
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.messagesContainer}
+        keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => scrollAlFinal(true)}
       >
         {mensajes.map((mensaje) => {
           const emisorId = obtenerUsuarioId(mensaje.usuarioEmisorId);
@@ -230,14 +254,16 @@ export default function ChatDetailScreen() {
       </ScrollView>
 
       <View style={styles.inputBar}>
-        <TextInput
-          style={styles.input}
-          placeholder="Escribí un mensaje..."
-          placeholderTextColor="#A7A7B0"
-          value={texto}
-          onChangeText={setTexto}
-          multiline
-        />
+        <View style={styles.inputShell}>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribí un mensaje..."
+            placeholderTextColor="#A7A7B0"
+            value={texto}
+            onChangeText={setTexto}
+            multiline
+          />
+        </View>
 
         <TouchableOpacity
           style={[styles.sendButton, (!texto.trim() || enviando) && styles.sendDisabled]}
@@ -255,12 +281,12 @@ export default function ChatDetailScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F7F5FF",
+    backgroundColor: "#F4F6FB",
   },
   header: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 18,
     paddingTop: 58,
-    paddingBottom: 16,
+    paddingBottom: 14,
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
@@ -274,6 +300,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 8,
+  },
+  headerAvatarBox: {
+    position: "relative",
+    marginRight: 10,
+  },
+  headerOnlineDot: {
+    position: "absolute",
+    right: 12,
+    bottom: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#12A150",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   headerText: {
     flex: 1,
@@ -289,10 +330,20 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 2,
   },
+  secureIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: "#F1ECFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   messagesContainer: {
+    flexGrow: 1,
+    justifyContent: "flex-end",
     paddingHorizontal: 18,
-    paddingTop: 20,
-    paddingBottom: 18,
+    paddingTop: 18,
+    paddingBottom: 22,
   },
   messageRow: {
     flexDirection: "row",
@@ -302,18 +353,19 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   messageBubble: {
-    maxWidth: "78%",
+    maxWidth: "82%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 22,
+    borderRadius: 20,
     borderTopLeftRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 11,
     borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
+    borderColor: "#ECE8F4",
   },
   messageMine: {
-    backgroundColor: "#7528F0",
-    borderTopLeftRadius: 22,
+    backgroundColor: "#6D28E8",
+    borderColor: "#6D28E8",
+    borderTopLeftRadius: 20,
     borderTopRightRadius: 6,
   },
   messageText: {
@@ -336,20 +388,26 @@ const styles = StyleSheet.create({
   },
   inputBar: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 22,
+    paddingTop: 12,
+    paddingBottom: 20,
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "flex-end",
+    borderTopWidth: 1,
+    borderTopColor: "#EEEAF7",
   },
-  input: {
+  inputShell: {
     flex: 1,
-    maxHeight: 110,
     borderRadius: 22,
-    backgroundColor: "#F7F5FF",
+    backgroundColor: "#F4F2FA",
     borderWidth: 1,
     borderColor: "#E0D9F4",
-    paddingHorizontal: 15,
+    paddingHorizontal: 2,
+  },
+  input: {
+    maxHeight: 110,
+    minHeight: 46,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     color: "#332047",
@@ -360,7 +418,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "#7528F0",
+    backgroundColor: "#6D28E8",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 10,

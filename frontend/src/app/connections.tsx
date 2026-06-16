@@ -12,8 +12,10 @@ import {
   X,
   Users,
   MessageCircle,
+  ShieldOff,
+  Send,
 } from "lucide-react-native";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../config/api";
@@ -40,10 +42,21 @@ type Solicitud = {
   estado: string;
 };
 
+type Bloqueo = {
+  bloqueadoId: Usuario | string;
+};
+
+type SugerenciaConexion = {
+  usuario: Usuario;
+  conexionesEnComun: number;
+};
+
 export default function ConnectionsScreen() {
   const [usuarioActualId, setUsuarioActualId] = useState<string | null>(null);
   const [conexiones, setConexiones] = useState<Conexion[]>([]);
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [solicitudesRecibidas, setSolicitudesRecibidas] = useState<Solicitud[]>([]);
+  const [solicitudesEnviadas, setSolicitudesEnviadas] = useState<Solicitud[]>([]);
+  const [sugerencias, setSugerencias] = useState<SugerenciaConexion[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -76,28 +89,82 @@ export default function ConnectionsScreen() {
 
       setUsuarioActualId(idUsuario);
 
-      const responseConexiones = await fetch(
-        `${API_URL}/api/conexiones/usuario/${idUsuario}`
-      );
+      const [responseConexiones, responseSugerencias, responseBloqueos] =
+        await Promise.all([
+        fetch(`${API_URL}/api/conexiones/usuario/${idUsuario}`),
+        fetch(`${API_URL}/api/conexiones/sugerencias/${idUsuario}`),
+        fetch(`${API_URL}/api/bloqueos/usuario/${idUsuario}`),
+      ]);
+
+      let idsBloqueados: string[] = [];
+
+      if (responseBloqueos.ok) {
+        const dataBloqueos = await responseBloqueos.json();
+        idsBloqueados = (dataBloqueos.bloqueos || [])
+          .map((bloqueo: Bloqueo) => obtenerIdUsuario(bloqueo.bloqueadoId))
+          .filter(Boolean) as string[];
+      }
 
       const dataConexiones = await responseConexiones.json();
 
       if (!responseConexiones.ok) {
         setConexiones([]);
       } else {
-        setConexiones(Array.isArray(dataConexiones) ? dataConexiones : []);
+        const conexionesObtenidas = Array.isArray(dataConexiones)
+          ? dataConexiones
+          : [];
+
+        setConexiones(
+          conexionesObtenidas.filter((conexion: Conexion) => {
+            const otroId = obtenerIdUsuario(
+              obtenerOtroUsuarioDesdeId(conexion, idUsuario)
+            );
+            return !otroId || !idsBloqueados.includes(otroId);
+          })
+        );
       }
 
       const responseSolicitudes = await fetch(
-        `${API_URL}/api/solicitudes-conexion/usuario/${idUsuario}`
+        `${API_URL}/api/solicitudes-conexion/pendientes/${idUsuario}`
       );
 
       const dataSolicitudes = await responseSolicitudes.json();
 
       if (!responseSolicitudes.ok) {
-        setSolicitudes([]);
+        setSolicitudesRecibidas([]);
+        setSolicitudesEnviadas([]);
       } else {
-        setSolicitudes(dataSolicitudes.solicitudes || []);
+        const solicitudesFiltradas = (dataSolicitudes.solicitudes || []).filter(
+          (solicitud: Solicitud) => {
+            const solicitanteId = obtenerIdUsuario(solicitud.usuariosolicitante);
+            const receptorId = obtenerIdUsuario(solicitud.usuarioreceptor);
+            const otroId =
+              solicitanteId === idUsuario ? receptorId : solicitanteId;
+
+            return !otroId || !idsBloqueados.includes(otroId);
+          }
+        );
+
+        setSolicitudesRecibidas(
+          solicitudesFiltradas.filter(
+            (solicitud: Solicitud) =>
+              obtenerIdUsuario(solicitud.usuarioreceptor) === idUsuario
+          )
+        );
+
+        setSolicitudesEnviadas(
+          solicitudesFiltradas.filter(
+            (solicitud: Solicitud) =>
+              obtenerIdUsuario(solicitud.usuariosolicitante) === idUsuario
+          )
+        );
+      }
+
+      if (responseSugerencias.ok) {
+        const dataSugerencias = await responseSugerencias.json();
+        setSugerencias(dataSugerencias.sugerencias || []);
+      } else {
+        setSugerencias([]);
       }
     } catch (error) {
       console.log("Error al cargar conexiones:", error);
@@ -163,6 +230,58 @@ export default function ConnectionsScreen() {
     }
   };
 
+  const enviarSolicitudSugerida = async (usuarioReceptorId?: string) => {
+    try {
+      if (!usuarioActualId || !usuarioReceptorId) return;
+
+      const response = await fetch(`${API_URL}/api/solicitudes-conexion`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usuariosolicitante: usuarioActualId,
+          usuarioreceptor: usuarioReceptorId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.mensaje || "No se pudo enviar la solicitud.");
+        return;
+      }
+
+      await cargarDatos(true);
+    } catch (error) {
+      console.log("Error enviando solicitud sugerida:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+  const cancelarSolicitud = async (solicitudId: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/solicitudes-conexion/${solicitudId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.mensaje || "No se pudo cancelar la solicitud.");
+        return;
+      }
+
+      await cargarDatos(true);
+    } catch (error) {
+      console.log("Error cancelando solicitud:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
   const abrirChat = async (conexion: Conexion) => {
     try {
       if (!usuarioActualId) return;
@@ -210,18 +329,63 @@ export default function ConnectionsScreen() {
     }
   };
 
-  const obtenerIdUsuario = (usuario?: Usuario) => {
-    return usuario?._id || usuario?.id;
+  const bloquearConexion = async (conexion: Conexion) => {
+    try {
+      if (!usuarioActualId) return;
+
+      const usuarioConexion = obtenerOtroUsuario(conexion);
+      const usuarioConexionId = obtenerIdUsuario(usuarioConexion);
+
+      if (!usuarioConexionId) {
+        alert("No se pudo identificar la conexión.");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/bloqueos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bloqueadorId: usuarioActualId,
+          bloqueadoId: usuarioConexionId,
+          motivo: "Bloqueado desde conexiones",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo bloquear al usuario.");
+        return;
+      }
+
+      await cargarDatos(true);
+    } catch (error) {
+      console.log("Error bloqueando conexión:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
   };
 
-  const obtenerOtroUsuario = (conexion: Conexion) => {
+  const obtenerIdUsuario = (usuario?: Usuario | string | null) => {
+    if (!usuario) return null;
+    if (typeof usuario === "string") return usuario;
+    return usuario._id || usuario.id || null;
+  };
+
+  const obtenerOtroUsuarioDesdeId = (conexion: Conexion, idUsuario: string) => {
     const usuario1Id = obtenerIdUsuario(conexion.usuario1);
 
-    if (usuario1Id === usuarioActualId) {
+    if (usuario1Id === idUsuario) {
       return conexion.usuario2;
     }
 
     return conexion.usuario1;
+  };
+
+  const obtenerOtroUsuario = (conexion: Conexion) => {
+    if (!usuarioActualId) return conexion.usuario1;
+    return obtenerOtroUsuarioDesdeId(conexion, usuarioActualId);
   };
 
   const obtenerUbicacion = (usuario?: Usuario) => {
@@ -280,15 +444,19 @@ export default function ConnectionsScreen() {
           <View style={styles.summaryDivider} />
 
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>{solicitudes.length}</Text>
-            <Text style={styles.summaryLabel}>Solicitudes</Text>
+            <Text style={styles.summaryNumber}>
+              {solicitudesRecibidas.length}
+            </Text>
+            <Text style={styles.summaryLabel}>Recibidas</Text>
           </View>
 
           <View style={styles.summaryDivider} />
 
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNumber}>
-              {conexiones.length + solicitudes.length}
+              {conexiones.length +
+                solicitudesRecibidas.length +
+                solicitudesEnviadas.length}
             </Text>
             <Text style={styles.summaryLabel}>Total</Text>
           </View>
@@ -296,7 +464,7 @@ export default function ConnectionsScreen() {
 
         <SectionHeader title="Solicitudes recibidas" />
 
-        {solicitudes.length === 0 ? (
+        {solicitudesRecibidas.length === 0 ? (
           <View style={styles.emptyMiniCard}>
             <Clock size={22} color="#8B35E8" />
             <Text style={styles.emptyMiniText}>
@@ -304,7 +472,7 @@ export default function ConnectionsScreen() {
             </Text>
           </View>
         ) : (
-          solicitudes.map((solicitud) => {
+          solicitudesRecibidas.map((solicitud) => {
             const usuarioSolicitante = solicitud.usuariosolicitante;
 
             return (
@@ -345,15 +513,56 @@ export default function ConnectionsScreen() {
           })
         )}
 
+        <SectionHeader title="Solicitudes enviadas" />
+
+        {solicitudesEnviadas.length === 0 ? (
+          <View style={styles.emptyMiniCard}>
+            <Send size={22} color="#8B35E8" />
+            <Text style={styles.emptyMiniText}>
+              Las solicitudes que mandes van a aparecer acá.
+            </Text>
+          </View>
+        ) : (
+          solicitudesEnviadas.map((solicitud) => {
+            const usuarioReceptor = solicitud.usuarioreceptor;
+
+            return (
+              <View key={solicitud._id} style={styles.requestCard}>
+                <ProfileAvatarLink usuario={usuarioReceptor} size={54} />
+
+                <View style={styles.userInfo}>
+                  <Text style={styles.name}>
+                    {usuarioReceptor?.nombre || "Usuario"}
+                  </Text>
+
+                  <Text style={styles.detail}>
+                    {obtenerUbicacion(usuarioReceptor)}
+                  </Text>
+
+                  <Text style={styles.eventText}>
+                    Solicitud enviada, esperando respuesta
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.cancelRequestButton}
+                  activeOpacity={0.85}
+                  onPress={() => cancelarSolicitud(solicitud._id)}
+                >
+                  <X size={18} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
+
         <SectionHeader title="Mis conexiones" />
 
         {conexiones.length === 0 ? (
           <EmptyState
             icon={<Users size={48} color="#B484F2" />}
             title="Todavía no tenés conexiones"
-            text="Cuando aceptes solicitudes o conectes con personas interesadas en eventos, van a aparecer acá."
-            buttonText="Explorar eventos"
-            onPress={() => router.push("/explore" as any)}
+            text="Cuando aceptes solicitudes o conectes con personas sugeridas, van a aparecer acá."
           />
         ) : (
           conexiones.map((conexion) => {
@@ -398,6 +607,61 @@ export default function ConnectionsScreen() {
                   onPress={() => abrirChat(conexion)}
                 >
                   <MessageCircle size={20} color="#7528F0" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.blockSmallButton}
+                  activeOpacity={0.85}
+                  onPress={() => bloquearConexion(conexion)}
+                >
+                  <ShieldOff size={18} color="#E53935" />
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
+
+        <SectionHeader title="Sugerencias para vos" />
+
+        {sugerencias.length === 0 ? (
+          <View style={styles.emptyMiniCard}>
+            <Users size={22} color="#8B35E8" />
+            <Text style={styles.emptyMiniText}>
+              No encontramos sugerencias nuevas por ahora.
+            </Text>
+          </View>
+        ) : (
+          sugerencias.map((sugerencia) => {
+            const usuarioSugerido = sugerencia.usuario;
+            const usuarioSugeridoId = obtenerIdUsuario(usuarioSugerido);
+
+            return (
+              <View key={usuarioSugeridoId} style={styles.connectionCard}>
+                <ProfileAvatarLink usuario={usuarioSugerido} size={54} />
+
+                <View style={styles.userInfo}>
+                  <Text style={styles.name}>
+                    {usuarioSugerido?.nombre || "Usuario"}
+                  </Text>
+
+                  <Text style={styles.detail}>
+                    {obtenerUbicacion(usuarioSugerido)}
+                  </Text>
+
+                  <Text style={styles.eventText}>
+                    {sugerencia.conexionesEnComun}{" "}
+                    {sugerencia.conexionesEnComun === 1
+                      ? "conexión en común"
+                      : "conexiones en común"}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.acceptButton}
+                  activeOpacity={0.85}
+                  onPress={() => enviarSolicitudSugerida(usuarioSugeridoId || undefined)}
+                >
+                  <Check size={19} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
             );
@@ -563,6 +827,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  cancelRequestButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFF1F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+  },
   statusAccepted: {
     backgroundColor: "#ECFDF3",
     paddingHorizontal: 8,
@@ -599,5 +872,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 10,
+  },
+  blockSmallButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFF1F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
 });

@@ -10,6 +10,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
+  Bookmark,
   CalendarDays,
   Heart,
   MapPin,
@@ -21,6 +22,7 @@ import { API_URL } from "../../config/api";
 import Logo from "../../components/Logo";
 import LoadingScreen from "../../components/LoadingScreen";
 import EmptyState from "../../components/EmptyState";
+import BottomNav from "../../components/BottomNav";
 import { Evento } from "../../types/Evento";
 import {
   obtenerImagen,
@@ -35,6 +37,8 @@ export default function EventDetail() {
   const [eventData, setEventData] = useState<Evento | null>(null);
   const [loading, setLoading] = useState(true);
   const [registrando, setRegistrando] = useState(false);
+  const [favoritoId, setFavoritoId] = useState<string | null>(null);
+  const [guardandoFavorito, setGuardandoFavorito] = useState(false);
 
   useEffect(() => {
     iniciarDetalle();
@@ -53,6 +57,9 @@ export default function EventDetail() {
         alert("No se encontró el ID del evento.");
         return;
       }
+
+      const usuario = JSON.parse(usuarioGuardado);
+      const usuarioId = usuario.id || usuario._id;
 
       const cacheKey = `evento:${String(id)}`;
       const eventoCacheado = getCached<Evento>(cacheKey);
@@ -73,11 +80,94 @@ export default function EventDetail() {
       const evento = data.evento || data;
       setEventData(evento);
       setCached(cacheKey, evento);
+
+      if (usuarioId) {
+        cargarFavorito(usuarioId, String(id));
+      }
     } catch (error) {
       console.log("Error al traer detalle:", error);
       alert("No se pudo conectar con el servidor.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cargarFavorito = async (usuarioId: string, eventoId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/favoritos/usuario/${usuarioId}`);
+      const data = await response.json();
+
+      if (!response.ok) return;
+
+      const favorito = (data.favoritos || []).find((item: any) => {
+        const evento = item.eventoId;
+        const idEvento = typeof evento === "string" ? evento : evento?._id;
+        return idEvento === eventoId;
+      });
+
+      setFavoritoId(favorito?._id || null);
+    } catch (error) {
+      console.log("Error cargando favorito:", error);
+    }
+  };
+
+  const toggleFavorito = async () => {
+    try {
+      if (!eventData?._id || guardandoFavorito) return;
+
+      setGuardandoFavorito(true);
+
+      const usuarioGuardado = await AsyncStorage.getItem("usuario");
+
+      if (!usuarioGuardado) {
+        router.replace("/login" as any);
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioGuardado);
+      const usuarioId = usuario.id || usuario._id;
+
+      if (!usuarioId) return;
+
+      if (favoritoId) {
+        const response = await fetch(`${API_URL}/api/favoritos/${favoritoId}`, {
+          method: "DELETE",
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert(data.error || "No se pudo sacar de guardados.");
+          return;
+        }
+
+        setFavoritoId(null);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/favoritos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usuarioId,
+          eventoId: eventData._id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok && data.error !== "El evento ya está en favoritos") {
+        alert(data.error || "No se pudo guardar el evento.");
+        return;
+      }
+
+      setFavoritoId(data.favorito?._id || "guardado");
+    } catch (error) {
+      console.log("Error actualizando favorito:", error);
+      alert("No se pudo conectar con el servidor.");
+    } finally {
+      setGuardandoFavorito(false);
     }
   };
 
@@ -126,7 +216,7 @@ export default function EventDetail() {
         return;
       }
 
-      router.push(`/event-people/${eventData._id}` as any);
+      router.replace(`/event-people/${eventData._id}?returnToHome=1` as any);
     } catch (error) {
       console.log("Error al registrar asistencia:", error);
       alert("No se pudo registrar la asistencia.");
@@ -254,11 +344,34 @@ export default function EventDetail() {
             disabled={registrando}
           >
             <Text style={styles.mainButtonText}>
-              {registrando ? "Registrando..." : "Quiero ir!"}
+              {registrando ? "Registrando..." : "Quiero ir"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.saveButton, favoritoId && styles.saveButtonActive]}
+            activeOpacity={0.85}
+            onPress={toggleFavorito}
+            disabled={guardandoFavorito}
+          >
+            <Bookmark
+              size={18}
+              color={favoritoId ? "#FFFFFF" : "#7528F0"}
+              fill={favoritoId ? "#FFFFFF" : "transparent"}
+            />
+            <Text
+              style={[
+                styles.saveButtonText,
+                favoritoId && styles.saveButtonTextActive,
+              ]}
+            >
+              {favoritoId ? "Guardado" : "Guardar evento"}
             </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <BottomNav />
     </View>
   );
 }
@@ -271,7 +384,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
     paddingTop: 48,
-    paddingBottom: 50,
+    paddingBottom: 140,
   },
   imageWrapper: {
     height: 245,
@@ -400,4 +513,30 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "800",
-  },});
+  },
+  saveButton: {
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E0D9F4",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginHorizontal: 22,
+    marginTop: 12,
+  },
+  saveButtonActive: {
+    backgroundColor: "#7528F0",
+    borderColor: "#7528F0",
+  },
+  saveButtonText: {
+    marginLeft: 8,
+    color: "#7528F0",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  saveButtonTextActive: {
+    color: "#FFFFFF",
+  },
+});

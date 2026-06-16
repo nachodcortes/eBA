@@ -39,6 +39,7 @@ export default function PublicationDetailScreen() {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null);
   const [usuarioActualId, setUsuarioActualId] = useState<string | null>(null);
+  const [bloqueadosIds, setBloqueadosIds] = useState<string[]>([]);
   const [nuevoComentario, setNuevoComentario] = useState("");
   const [respuestas, setRespuestas] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -83,7 +84,11 @@ export default function PublicationDetailScreen() {
         setLoading(false);
       }
 
-      await Promise.all([cargarPublicacion(), cargarComentarios()]);
+      await Promise.all([
+        cargarPublicacion(),
+        cargarComentarios(),
+        cargarBloqueos(idUsuario),
+      ]);
     } catch (error) {
       console.log("Error al iniciar detalle publicación:", error);
       alert("No se pudo conectar con el servidor.");
@@ -125,6 +130,28 @@ export default function PublicationDetailScreen() {
       setCached(`comentarios:publicacion:${String(id)}`, data.comentarios || []);
     } catch (error) {
       console.log("Error al cargar comentarios:", error);
+    }
+  };
+
+  const cargarBloqueos = async (idUsuario: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/bloqueos/usuario/${idUsuario}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.log("Error al traer bloqueos:", data);
+        return;
+      }
+
+      const ids = (data.bloqueos || [])
+        .map((bloqueo: { bloqueadoId: Usuario | string }) =>
+          obtenerIdUsuario(bloqueo.bloqueadoId)
+        )
+        .filter(Boolean) as string[];
+
+      setBloqueadosIds(ids);
+    } catch (error) {
+      console.log("Error al cargar bloqueos:", error);
     }
   };
 
@@ -448,7 +475,12 @@ export default function PublicationDetailScreen() {
     });
   };
 
-  const comentariosPrincipales = comentarios.filter((comentario) => {
+  const comentariosVisibles = comentarios.filter((comentario) => {
+    const autorId = obtenerIdUsuario(comentario.usuarioId);
+    return !autorId || !bloqueadosIds.includes(autorId);
+  });
+
+  const comentariosPrincipales = comentariosVisibles.filter((comentario) => {
     const padre = comentario.comentarioPadreId as any;
     return !padre;
   });
@@ -471,7 +503,19 @@ export default function PublicationDetailScreen() {
   const usuarioPublicacion = obtenerUsuarioSeguro(publicacion.usuarioId);
   const eventoPublicacion = obtenerEventoSeguro(publicacion.eventoId);
   const idAutorPublicacion = obtenerIdUsuario(publicacion.usuarioId);
+  const autorBloqueado = !!idAutorPublicacion && bloqueadosIds.includes(idAutorPublicacion);
   const esMiPublicacion = !!usuarioActualId && idAutorPublicacion === usuarioActualId;
+
+  if (autorBloqueado) {
+    return (
+      <EmptyState
+        title="Publicación no disponible"
+        text="Esta publicación pertenece a una persona bloqueada."
+        buttonText="Volver"
+        onPress={() => router.back()}
+      />
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -642,7 +686,7 @@ export default function PublicationDetailScreen() {
             <CommentThread
               key={comentario._id}
               comentario={comentario}
-              comentarios={comentarios}
+              comentarios={comentariosVisibles}
               usuarioActualId={usuarioActualId}
               respuestasTexto={respuestas}
               onChangeRespuesta={(comentarioId, texto) =>

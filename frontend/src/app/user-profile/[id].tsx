@@ -9,6 +9,7 @@ import {
   Heart,
   MapPin,
   MessageCircle,
+  ShieldOff,
   UserPlus,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -202,6 +203,41 @@ export default function UserProfileScreen() {
     }
   };
 
+  const bloquearUsuario = async () => {
+    try {
+      if (!usuarioActualId || !id) return;
+
+      setProcesando(true);
+
+      const response = await fetch(`${API_URL}/api/bloqueos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bloqueadorId: usuarioActualId,
+          bloqueadoId: String(id),
+          motivo: "Bloqueado desde perfil",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo bloquear al usuario.");
+        return;
+      }
+
+      alert("Usuario bloqueado correctamente.");
+      router.replace("/connections" as any);
+    } catch (error) {
+      console.log("Error bloqueando usuario:", error);
+      alert("No se pudo conectar con el servidor.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   if (loading) {
     return <LoadingScreen text="Cargando perfil..." />;
   }
@@ -277,6 +313,16 @@ export default function UserProfileScreen() {
                   <Text style={styles.connectedPillText}>Conectados</Text>
                 </View>
               )}
+
+              <TouchableOpacity
+                style={styles.blockButton}
+                activeOpacity={0.85}
+                disabled={procesando}
+                onPress={bloquearUsuario}
+              >
+                <ShieldOff size={17} color="#E53935" />
+                <Text style={styles.blockButtonText}>Bloquear</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -432,6 +478,20 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: "#12A150",
     fontSize: 12,
+    fontWeight: "900",
+  },
+  blockButton: {
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFF1F2",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  blockButtonText: {
+    marginLeft: 7,
+    color: "#E53935",
+    fontSize: 13,
     fontWeight: "900",
   },
   infoCard: {

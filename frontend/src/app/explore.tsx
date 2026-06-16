@@ -23,7 +23,10 @@ import InterestChips from "../components/InterestChips";
 import { Evento } from "../types/Evento";
 import { getCached, setCached } from "../utils/cache";
 
-
+type Favorito = {
+  _id: string;
+  eventoId: Evento | string;
+};
 
 export default function ExploreScreen() {
   const params = useLocalSearchParams();
@@ -48,8 +51,12 @@ export default function ExploreScreen() {
             return;
           }
 
-          const favoritosGuardados = await AsyncStorage.getItem("favoritos");
-          setFavoritos(favoritosGuardados ? JSON.parse(favoritosGuardados) : []);
+          const usuario = JSON.parse(usuarioGuardado);
+          const usuarioId = usuario.id || usuario._id;
+
+          if (usuarioId) {
+            cargarFavoritos(usuarioId);
+          }
 
           const cacheKey = await obtenerCacheKeyInicial();
           const eventosCacheados = cacheKey
@@ -130,6 +137,30 @@ export default function ExploreScreen() {
 
     const usuario = JSON.parse(usuarioGuardado);
     return usuario.id || usuario._id || null;
+  };
+
+  const cargarFavoritos = async (usuarioId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/favoritos/usuario/${usuarioId}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.log("Error al traer favoritos:", data);
+        return;
+      }
+
+      const idsFavoritos = (data.favoritos || [])
+        .map((favorito: Favorito) => {
+          const evento = favorito.eventoId;
+          return typeof evento === "string" ? evento : evento?._id;
+        })
+        .filter(Boolean);
+
+      setFavoritos(idsFavoritos);
+      await AsyncStorage.setItem("favoritos", JSON.stringify(idsFavoritos));
+    } catch (error) {
+      console.log("Error cargando favoritos:", error);
+    }
   };
 
   const obtenerCacheKeyInicial = async () => {
@@ -359,16 +390,71 @@ export default function ExploreScreen() {
   await obtenerTodosLosEventos();
 };
   const toggleFavorito = async (eventoId: string) => {
-    let nuevosFavoritos: string[];
+    try {
+      const usuarioId = await obtenerUsuarioId();
 
-    if (favoritos.includes(eventoId)) {
-      nuevosFavoritos = favoritos.filter((id) => id !== eventoId);
-    } else {
-      nuevosFavoritos = [...favoritos, eventoId];
+      if (!usuarioId) return;
+
+      if (favoritos.includes(eventoId)) {
+        const responseFavoritos = await fetch(
+          `${API_URL}/api/favoritos/usuario/${usuarioId}`
+        );
+        const dataFavoritos = await responseFavoritos.json();
+
+        if (!responseFavoritos.ok) {
+          alert(dataFavoritos.error || "No se pudo leer favoritos.");
+          return;
+        }
+
+        const favorito = (dataFavoritos.favoritos || []).find((item: Favorito) => {
+          const evento = item.eventoId;
+          const idEvento = typeof evento === "string" ? evento : evento?._id;
+          return idEvento === eventoId;
+        });
+
+        if (favorito?._id) {
+          const response = await fetch(`${API_URL}/api/favoritos/${favorito._id}`, {
+            method: "DELETE",
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            alert(data.error || "No se pudo sacar de favoritos.");
+            return;
+          }
+        }
+
+        const nuevosFavoritos = favoritos.filter((id) => id !== eventoId);
+        setFavoritos(nuevosFavoritos);
+        await AsyncStorage.setItem("favoritos", JSON.stringify(nuevosFavoritos));
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/favoritos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usuarioId,
+          eventoId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok && data.error !== "El evento ya está en favoritos") {
+        alert(data.error || "No se pudo guardar el evento.");
+        return;
+      }
+
+      const nuevosFavoritos = [...favoritos, eventoId];
+      setFavoritos(nuevosFavoritos);
+      await AsyncStorage.setItem("favoritos", JSON.stringify(nuevosFavoritos));
+    } catch (error) {
+      console.log("Error actualizando favorito:", error);
+      alert("No se pudo conectar con el servidor.");
     }
-
-    setFavoritos(nuevosFavoritos);
-    await AsyncStorage.setItem("favoritos", JSON.stringify(nuevosFavoritos));
   };
 
   const esFavorito = (eventoId: string) => {

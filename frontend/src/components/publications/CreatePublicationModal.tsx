@@ -1,4 +1,14 @@
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import ProfileAvatarLink from "../ProfileAvatarLink";
 import { Usuario } from "../../types/Usuario";
 
@@ -21,7 +31,11 @@ export default function CreatePublicationModal({
 }: Props) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 18 : 0}
+      >
         <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={onClose}>
@@ -42,25 +56,33 @@ export default function CreatePublicationModal({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.tweetBox}>
-            <ProfileAvatarLink
-              usuario={usuarioActual || ({ nombre: "Yo" } as Usuario)}
-              size={42}
-              fallbackToProfile
-            />
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.modalContent}
+          >
+            <View style={styles.tweetBox}>
+              <ProfileAvatarLink
+                usuario={usuarioActual || ({ nombre: "Yo" } as Usuario)}
+                size={42}
+                fallbackToProfile
+              />
 
-            <TextInput
-              style={styles.tweetInput}
-              placeholder="¿Qué querés decir sobre este evento?"
-              placeholderTextColor="#9A96A8"
-              value={texto}
-              onChangeText={onChangeTexto}
-              multiline
-              autoFocus
-            />
-          </View>
+              <TextInput
+                style={styles.tweetInput}
+                placeholder="¿Qué querés decir sobre este evento?"
+                placeholderTextColor="#9A96A8"
+                value={texto}
+                onChangeText={onChangeTexto}
+                multiline
+                autoFocus
+                scrollEnabled
+                textAlignVertical="top"
+              />
+            </View>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -77,14 +99,18 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 22,
     paddingTop: 18,
-    paddingBottom: 36,
-    minHeight: 360,
+    paddingBottom: Platform.OS === "ios" ? 24 : 18,
+    maxHeight: "86%",
+    minHeight: 320,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 22,
+  },
+  modalContent: {
+    paddingBottom: 18,
   },
   modalCancelText: {
     color: "#6F6D7A",
@@ -110,7 +136,8 @@ const styles = StyleSheet.create({
   },
   tweetInput: {
     flex: 1,
-    minHeight: 180,
+    minHeight: 210,
+    maxHeight: 360,
     marginLeft: 12,
     fontSize: 18,
     color: "#332047",
