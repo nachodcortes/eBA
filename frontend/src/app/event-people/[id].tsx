@@ -35,7 +35,11 @@ import { Evento } from "../../types/Evento";
 import { Usuario } from "../../types/Usuario";
 import { Publicacion, Comentario } from "../../types/Social";
 
-import { obtenerImagen, formatearFechaLarga } from "../../utils/eventHelpers";
+import {
+  eventoYaPaso,
+  obtenerImagen,
+  formatearFechaLarga,
+} from "../../utils/eventHelpers";
 import { getCached, setCached } from "../../utils/cache";
 
 type Asistencia = {
@@ -421,6 +425,11 @@ export default function EventPeopleScreen() {
 
   const crearPublicacion = async () => {
     try {
+      if (eventoYaPaso(evento?.fecha)) {
+        alert("No se pueden agregar publicaciones a un evento finalizado.");
+        return;
+      }
+
       if (!nuevaPublicacion.trim()) {
         alert("Escribí algo para publicar.");
         return;
@@ -696,6 +705,8 @@ export default function EventPeopleScreen() {
     );
   }
 
+  const eventoFinalizado = eventoYaPaso(evento.fecha);
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -927,13 +938,30 @@ export default function EventPeopleScreen() {
         {tabActiva === "publicaciones" && (
           <View style={styles.publicacionesContainer}>
             <TouchableOpacity
-              style={styles.openPostButton}
+              style={[
+                styles.openPostButton,
+                eventoFinalizado && styles.openPostButtonDisabled,
+              ]}
               activeOpacity={0.85}
+              disabled={eventoFinalizado}
               onPress={() => setModalPublicacionVisible(true)}
             >
-              <Plus size={20} color="#FFFFFF" />
-              <Text style={styles.openPostButtonText}>Crear publicación</Text>
+              <Plus size={20} color={eventoFinalizado ? "#8D8A99" : "#FFFFFF"} />
+              <Text
+                style={[
+                  styles.openPostButtonText,
+                  eventoFinalizado && styles.openPostButtonTextDisabled,
+                ]}
+              >
+                {eventoFinalizado ? "Evento finalizado" : "Crear publicación"}
+              </Text>
             </TouchableOpacity>
+
+            {eventoFinalizado && (
+              <Text style={styles.finishedEventText}>
+                Este evento ya finalizó. Podés leer las publicaciones, pero no crear nuevas.
+              </Text>
+            )}
 
             {loadingPublicaciones ? (
               <Text style={styles.loadingPublicacionesText}>
@@ -1297,11 +1325,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 20,
   },
+  openPostButtonDisabled: {
+    backgroundColor: "#ECE8F4",
+    marginBottom: 8,
+  },
   openPostButtonText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900",
     marginLeft: 8,
+  },
+  openPostButtonTextDisabled: {
+    color: "#8D8A99",
+  },
+  finishedEventText: {
+    color: "#8D8A99",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+    marginBottom: 18,
+    textAlign: "center",
   },
   loadingPublicacionesText: {
     textAlign: "center",

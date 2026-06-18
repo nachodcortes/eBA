@@ -38,7 +38,7 @@ export default function EventListCard({
   onRemovePress,
   status,
 }: EventListCardProps) {
-  const esEventoPasado = status === "Este concierto ya pasó";
+  const esEventoPasado = status === "Evento finalizado";
 
   return (
     <Pressable style={styles.card} onPress={onPress}>

@@ -109,7 +109,7 @@ export default function FavoritesScreen() {
   };
 
   const obtenerEstadoEvento = (evento: Evento, estado?: string) => {
-    if (eventoYaPaso(evento.fecha)) return "Este concierto ya pasó";
+    if (eventoYaPaso(evento.fecha)) return "Evento finalizado";
     return obtenerTextoEstado(estado);
   };
 

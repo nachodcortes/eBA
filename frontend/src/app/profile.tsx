@@ -245,7 +245,7 @@ export default function ProfileScreen() {
   };
 
   const obtenerEstadoEvento = (evento: Evento, estado?: string) => {
-    if (eventoYaPaso(evento.fecha)) return "Este concierto ya pasó";
+    if (eventoYaPaso(evento.fecha)) return "Evento finalizado";
     return obtenerTextoEstado(estado);
   };
 
@@ -439,7 +439,7 @@ export default function ProfileScreen() {
                     key={favorito._id}
                     evento={evento}
                     status={
-                      eventoYaPaso(evento.fecha) ? "Este concierto ya pasó" : "Guardado"
+                      eventoYaPaso(evento.fecha) ? "Evento finalizado" : "Guardado"
                     }
                     showRemove
                     onRemovePress={() => sacarFavorito(favorito._id)}

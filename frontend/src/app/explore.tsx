@@ -607,6 +607,7 @@ export default function ExploreScreen() {
               <EventListCard
                 key={evento._id}
                 evento={evento}
+                status={eventoYaPaso(evento.fecha) ? "Evento finalizado" : undefined}
                 showHeart
                 isFavorite={esFavorito(evento._id)}
                 onHeartPress={() => toggleFavorito(evento._id)}

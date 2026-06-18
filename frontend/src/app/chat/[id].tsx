@@ -40,6 +40,7 @@ type Mensaje = {
   usuarioEmisorId: Usuario | string;
   mensajePadreId?: Mensaje | string | null;
   contenido: string;
+  eliminado?: boolean;
   fechaEnvio?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -60,6 +61,7 @@ export default function ChatDetailScreen() {
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [mensajeRespondiendo, setMensajeRespondiendo] = useState<Mensaje | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
+  const posicionesMensajes = useRef<Record<string, number>>({});
 
   const scrollAlFinal = (animado = true) => {
     requestAnimationFrame(() => {
@@ -246,12 +248,14 @@ export default function ChatDetailScreen() {
 
       setGuardandoEdicion(true);
 
-      const response = await fetch(`${API_URL}/api/mensajes/${mensajeId}`, {
-        method: "PUT",
+      const response = await fetch(`${API_URL}/api/mensajes`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          accion: "editar",
+          mensajeId,
           usuarioId: usuarioActualId,
           contenido: textoEditado.trim(),
         }),
@@ -271,6 +275,7 @@ export default function ChatDetailScreen() {
                 ...mensaje,
                 contenido: data.mensaje?.contenido || textoEditado.trim(),
                 updatedAt: data.mensaje?.updatedAt || new Date().toISOString(),
+                eliminado: false,
               }
             : mensaje
         )
@@ -288,12 +293,14 @@ export default function ChatDetailScreen() {
     try {
       if (!usuarioActualId) return;
 
-      const response = await fetch(`${API_URL}/api/mensajes/${mensajeId}`, {
-        method: "DELETE",
+      const response = await fetch(`${API_URL}/api/mensajes`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          accion: "eliminar",
+          mensajeId,
           usuarioId: usuarioActualId,
         }),
       });
@@ -305,7 +312,18 @@ export default function ChatDetailScreen() {
         return;
       }
 
-      setMensajes((prev) => prev.filter((mensaje) => mensaje._id !== mensajeId));
+      setMensajes((prev) =>
+        prev.map((mensaje) =>
+          mensaje._id === mensajeId
+            ? {
+                ...mensaje,
+                contenido: data.mensaje?.contenido || "Mensaje eliminado",
+                eliminado: true,
+                updatedAt: data.mensaje?.updatedAt || new Date().toISOString(),
+              }
+            : mensaje
+        )
+      );
       setMensajeSeleccionadoId(null);
       if (mensajeEditandoId === mensajeId) cancelarEdicionMensaje();
     } catch (error) {
@@ -340,6 +358,20 @@ export default function ChatDetailScreen() {
   const obtenerPreviewMensaje = (contenido?: string) => {
     if (!contenido) return "Mensaje";
     return contenido.length > 64 ? `${contenido.slice(0, 61)}...` : contenido;
+  };
+
+  const irAMensajeRespondido = (mensajeId?: string | null) => {
+    if (!mensajeId) return;
+
+    const y = posicionesMensajes.current[mensajeId];
+
+    if (typeof y !== "number") return;
+
+    scrollRef.current?.scrollTo({
+      y: Math.max(y - 24, 0),
+      animated: true,
+    });
+    setMensajeSeleccionadoId(mensajeId);
   };
 
   if (loading) {
@@ -384,14 +416,24 @@ export default function ChatDetailScreen() {
           const emisorId = obtenerUsuarioId(mensaje.usuarioEmisorId);
           const esMio = emisorId === usuarioActualId;
           const mensajeRespondido = obtenerMensajeRespondido(mensaje);
+          const mensajeEstaEliminado = !!mensaje.eliminado;
+          const mensajeFueEditado =
+            !!mensaje.updatedAt &&
+            !!mensaje.createdAt &&
+            mensaje.updatedAt !== mensaje.createdAt &&
+            !mensajeEstaEliminado;
 
           return (
             <View
               key={mensaje._id}
               style={[styles.messageRow, esMio && styles.messageRowMine]}
+              onLayout={(event) => {
+                posicionesMensajes.current[mensaje._id] = event.nativeEvent.layout.y;
+              }}
             >
               <TouchableOpacity
-                activeOpacity={esMio ? 0.82 : 1}
+                activeOpacity={mensajeEstaEliminado ? 1 : 0.82}
+                disabled={mensajeEstaEliminado}
                 onPress={() =>
                   setMensajeSeleccionadoId((actual) =>
                     actual === mensaje._id ? null : mensaje._id
@@ -438,11 +480,13 @@ export default function ChatDetailScreen() {
                 ) : (
                   <>
                     {mensajeRespondido && (
-                      <View
+                      <TouchableOpacity
                         style={[
                           styles.replyPreview,
                           esMio && styles.replyPreviewMine,
                         ]}
+                        activeOpacity={0.85}
+                        onPress={() => irAMensajeRespondido(mensajeRespondido._id)}
                       >
                         <Text
                           style={[
@@ -461,26 +505,37 @@ export default function ChatDetailScreen() {
                           ]}
                           numberOfLines={2}
                         >
-                          {obtenerPreviewMensaje(mensajeRespondido.contenido)}
+                          {mensajeRespondido.eliminado
+                            ? "Mensaje eliminado"
+                            : obtenerPreviewMensaje(mensajeRespondido.contenido)}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     )}
 
-                    <Text style={[styles.messageText, esMio && styles.messageTextMine]}>
+                    <Text
+                      style={[
+                        styles.messageText,
+                        esMio && styles.messageTextMine,
+                        mensajeEstaEliminado && styles.messageDeletedText,
+                      ]}
+                    >
                       {mensaje.contenido}
                     </Text>
 
                     <Text style={[styles.messageTime, esMio && styles.messageTimeMine]}>
-                      {mensaje.updatedAt && mensaje.updatedAt !== mensaje.createdAt
-                        ? "Editado · "
-                        : ""}
                       {formatearHora(mensaje.fechaEnvio || mensaje.createdAt)}
                     </Text>
+
+                    {mensajeFueEditado && (
+                      <Text style={styles.editedLabel}>Editado</Text>
+                    )}
                   </>
                 )}
               </TouchableOpacity>
 
-              {mensajeSeleccionadoId === mensaje._id && !mensajeEditandoId && (
+              {mensajeSeleccionadoId === mensaje._id &&
+                !mensajeEditandoId &&
+                !mensajeEstaEliminado && (
                 <View style={styles.messageActions}>
                   <TouchableOpacity
                     style={styles.messageActionPill}
@@ -681,6 +736,10 @@ const styles = StyleSheet.create({
   messageTextMine: {
     color: "#FFFFFF",
   },
+  messageDeletedText: {
+    color: "#8D8A99",
+    fontStyle: "italic",
+  },
   messageTime: {
     fontSize: 10,
     color: "#8D8A99",
@@ -690,6 +749,13 @@ const styles = StyleSheet.create({
   },
   messageTimeMine: {
     color: "rgba(255,255,255,0.75)",
+  },
+  editedLabel: {
+    color: "#8D8A99",
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 3,
+    alignSelf: "flex-end",
   },
   replyPreview: {
     backgroundColor: "#F4F2FA",

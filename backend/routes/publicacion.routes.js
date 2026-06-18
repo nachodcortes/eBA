@@ -3,10 +3,32 @@ const router = express.Router();
 
 const Publicacion = require("../models/Publicacion");
 const Comentario = require("../models/Comentario");
+const Evento = require("../models/Evento");
+
+const eventoFinalizado = (evento) => {
+  if (!evento?.fecha) return false;
+  return new Date(evento.fecha).getTime() < Date.now() || evento.activo === false;
+};
 
 // Crear publicación
 router.post("/", async (req, res) => {
   try {
+    const { eventoId } = req.body;
+
+    const evento = await Evento.findById(eventoId).select("fecha activo");
+
+    if (!evento) {
+      return res.status(404).json({
+        error: "Evento no encontrado",
+      });
+    }
+
+    if (eventoFinalizado(evento)) {
+      return res.status(400).json({
+        error: "No se pueden agregar publicaciones a un evento finalizado",
+      });
+    }
+
     const publicacion = new Publicacion(req.body);
     await publicacion.save();
 

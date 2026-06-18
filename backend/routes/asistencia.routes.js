@@ -2,6 +2,12 @@ const express = require("express");
 const router = express.Router();
 
 const Asistencia = require("../models/Asistencia");
+const Evento = require("../models/Evento");
+
+const eventoFinalizado = (evento) => {
+  if (!evento?.fecha) return false;
+  return new Date(evento.fecha).getTime() < Date.now() || evento.activo === false;
+};
 
 // Registrar asistencia a un evento
 // Registrar asistencia a un evento
@@ -13,6 +19,20 @@ router.post("/", async (req, res) => {
       return res.status(400).json({
         error: "Faltan datos obligatorios",
         detalle: "usuarioId y eventoId son requeridos",
+      });
+    }
+
+    const evento = await Evento.findById(eventoId).select("fecha activo");
+
+    if (!evento) {
+      return res.status(404).json({
+        error: "Evento no encontrado",
+      });
+    }
+
+    if (eventoFinalizado(evento)) {
+      return res.status(400).json({
+        error: "No podés marcar Quiero ir en un evento finalizado",
       });
     }
 

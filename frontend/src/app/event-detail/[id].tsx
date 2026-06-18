@@ -28,6 +28,7 @@ import {
   obtenerImagen,
   formatearFechaLarga,
   obtenerUbicacion,
+  eventoYaPaso,
 } from "../../utils/eventHelpers";
 import { getCached, setCached } from "../../utils/cache";
 
@@ -189,6 +190,11 @@ export default function EventDetail() {
         return;
       }
 
+      if (eventoYaPaso(eventData.fecha)) {
+        alert("No podés marcar Quiero ir en un evento finalizado.");
+        return;
+      }
+
       const usuario = JSON.parse(usuarioGuardado);
       const usuarioId = usuario.id || usuario._id;
 
@@ -239,6 +245,8 @@ export default function EventDetail() {
       />
     );
   }
+
+  const eventoFinalizado = eventoYaPaso(eventData.fecha);
 
   return (
     <View style={styles.screen}>
@@ -334,19 +342,25 @@ export default function EventDetail() {
             <Text style={styles.secondaryArrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.mainButton,
-              registrando && styles.mainButtonDisabled,
-            ]}
-            activeOpacity={0.85}
-            onPress={registrarAsistencia}
-            disabled={registrando}
-          >
-            <Text style={styles.mainButtonText}>
-              {registrando ? "Registrando..." : "Quiero ir"}
-            </Text>
-          </TouchableOpacity>
+          {!eventoFinalizado ? (
+            <TouchableOpacity
+              style={[
+                styles.mainButton,
+                registrando && styles.mainButtonDisabled,
+              ]}
+              activeOpacity={0.85}
+              onPress={registrarAsistencia}
+              disabled={registrando}
+            >
+              <Text style={styles.mainButtonText}>
+                {registrando ? "Registrando..." : "Quiero ir"}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.mainButton, styles.finishedButton]}>
+              <Text style={styles.finishedButtonText}>Evento finalizado</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.saveButton, favoritoId && styles.saveButtonActive]}
@@ -508,6 +522,14 @@ const styles = StyleSheet.create({
   },
   mainButtonDisabled: {
     opacity: 0.7,
+  },
+  finishedButton: {
+    backgroundColor: "#ECE8F4",
+  },
+  finishedButtonText: {
+    color: "#8D8A99",
+    fontSize: 17,
+    fontWeight: "900",
   },
   mainButtonText: {
     color: "#FFFFFF",

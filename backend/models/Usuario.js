@@ -62,9 +62,13 @@ const usuarioSchema = new mongoose.Schema(
     },
     nombreUsuario: {
       type: String,
-      unique: true,
+      index: {
+        unique: true,
+        sparse: true,
+      },
       lowercase: true,
       trim: true,
+      match: /^[a-z0-9._]+$/,
     },
   },
   {

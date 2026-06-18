@@ -22,6 +22,13 @@ const MensajeSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    eliminado: {
+      type: Boolean,
+      default: false,
+    },
+    eliminadoEn: {
+      type: Date,
+    },
     fechaEnvio: {
       type: Date,
       default: Date.now,
