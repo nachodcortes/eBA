@@ -39,9 +39,11 @@ const normalizarNombreUsuario = (valor) => {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
-    .replace("@", "")
-    .replace(/\s+/g, ".")
-    .replace(/[^a-z0-9._]/g, "");
+    .replace(/^@+/, "")
+    .replace(/[\s-]+/g, ".")
+    .replace(/[^a-z0-9._]+/g, ".")
+    .replace(/[._]{2,}/g, ".")
+    .replace(/^[._]+|[._]+$/g, "");
 };
 
 const generarNombreUsuarioUnico = async (base, usuarioIdIgnorado = null) => {
@@ -72,6 +74,34 @@ const generarNombreUsuarioUnico = async (base, usuarioIdIgnorado = null) => {
     contador++;
     nombreUsuarioFinal = `${nombreUsuarioBase}.${contador}`;
   }
+};
+
+const generarSugerenciasNombreUsuario = async (base, usuarioIdIgnorado = null) => {
+  const baseNormalizada = normalizarNombreUsuario(base) || `usuario${Date.now()}`;
+  const sugerencias = [];
+  let contador = 1;
+
+  while (sugerencias.length < 4 && contador < 100) {
+    const candidato =
+      contador === 1
+        ? `${baseNormalizada}.${Math.floor(10 + Math.random() * 90)}`
+        : `${baseNormalizada}.${contador}`;
+    const filtro = { nombreUsuario: candidato };
+
+    if (usuarioIdIgnorado) {
+      filtro._id = { $ne: usuarioIdIgnorado };
+    }
+
+    const existe = await Usuario.findOne(filtro);
+
+    if (!existe && !sugerencias.includes(candidato)) {
+      sugerencias.push(candidato);
+    }
+
+    contador += 1;
+  }
+
+  return sugerencias;
 };
 
 const armarUsuarioRespuesta = (usuario) => {
@@ -122,6 +152,43 @@ router.get(
     session: false,
   })
 );
+
+// GET /api/usuarios/nombre-usuario/disponible?nombreUsuario=...
+router.get("/nombre-usuario/disponible", async (req, res) => {
+  try {
+    const { nombreUsuario, usuarioId } = req.query;
+    const nombreUsuarioNormalizado = normalizarNombreUsuario(String(nombreUsuario || ""));
+
+    if (!nombreUsuarioNormalizado) {
+      return res.status(400).json({
+        disponible: false,
+        error: "Escribí al menos una palabra para tu nombre de usuario",
+      });
+    }
+
+    const filtro = { nombreUsuario: nombreUsuarioNormalizado };
+
+    if (usuarioId) {
+      filtro._id = { $ne: usuarioId };
+    }
+
+    const usuarioExistente = await Usuario.findOne(filtro);
+    const disponible = !usuarioExistente;
+
+    return res.json({
+      nombreUsuario: nombreUsuarioNormalizado,
+      disponible,
+      sugerencias: disponible
+        ? []
+        : await generarSugerenciasNombreUsuario(nombreUsuarioNormalizado, usuarioId),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error al verificar nombre de usuario",
+      detalle: error.message,
+    });
+  }
+});
 
 // GET /api/usuarios/auth/google/callback
 router.get(
@@ -307,8 +374,7 @@ router.post("/registro", async (req, res) => {
 
       if (!nombreUsuarioFinal) {
         return res.status(400).json({
-          error:
-            "El nombre de usuario solo puede tener letras, números, punto o guion bajo",
+          error: "Escribí al menos una palabra para tu nombre de usuario",
         });
       }
 
@@ -319,6 +385,7 @@ router.post("/registro", async (req, res) => {
       if (usuarioExistentePorNombre) {
         return res.status(400).json({
           error: "Ese nombre de usuario ya está en uso",
+          sugerencias: await generarSugerenciasNombreUsuario(nombreUsuarioFinal),
         });
       }
     } else {
@@ -363,6 +430,7 @@ router.post("/registro", async (req, res) => {
     if (esErrorNombreUsuarioDuplicado(error)) {
       return res.status(400).json({
         error: "Ese nombre de usuario ya está en uso",
+        sugerencias: await generarSugerenciasNombreUsuario(req.body.nombreUsuario),
       });
     }
 

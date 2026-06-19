@@ -5,7 +5,20 @@ const ChatSchema = new mongoose.Schema(
     conexionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conexion",
-      required: true,
+      required: false,
+    },
+    eventoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Evento",
+      index: true,
+    },
+    nombre: {
+      type: String,
+    },
+    tipo: {
+      type: String,
+      enum: ["privado", "evento"],
+      default: "privado",
     },
     participantes: [
       {

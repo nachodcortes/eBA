@@ -2,12 +2,70 @@ const express = require("express");
 const router = express.Router();
 const Chat = require("../models/Chat");
 const Mensaje = require("../models/Mensaje");
+const Evento = require("../models/Evento");
 
-// Crear un chat
-// Crear un chat
+const unirseAChatEvento = async (req, res) => {
+  try {
+    const eventoId = req.params.eventoId || req.body.eventoId;
+    const { usuarioId } = req.body;
+
+    if (!eventoId) {
+      return res.status(400).json({ error: "eventoId es obligatorio" });
+    }
+
+    if (!usuarioId) {
+      return res.status(400).json({ error: "usuarioId es obligatorio" });
+    }
+
+    const evento = await Evento.findById(eventoId).select("nombre");
+
+    if (!evento) {
+      return res.status(404).json({ error: "Evento no encontrado" });
+    }
+
+    let chat = await Chat.findOne({ tipo: "evento", eventoId });
+
+    if (!chat) {
+      chat = await Chat.create({
+        tipo: "evento",
+        eventoId,
+        nombre: evento.nombre,
+        participantes: [usuarioId],
+      });
+    } else if (!chat.participantes.some((id) => String(id) === String(usuarioId))) {
+      chat.participantes.push(usuarioId);
+      await chat.save();
+    }
+
+    const chatPopulado = await Chat.findById(chat._id)
+      .populate("participantes", "nombre nombreUsuario email fotoPerfil")
+      .populate("eventoId", "nombre fecha");
+
+    return res.json({
+      message: "Chat grupal del evento listo",
+      chat: chatPopulado,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error al unirse al chat del evento",
+      detalle: error.message,
+    });
+  }
+};
+
 router.post("/", async (req, res) => {
   try {
+    if (req.body.accion === "unirse-evento" || req.body.eventoId) {
+      return unirseAChatEvento(req, res);
+    }
+
     const { conexionId, participantes } = req.body;
+
+    if (!Array.isArray(participantes) || participantes.length === 0) {
+      return res.status(400).json({
+        error: "participantes es obligatorio para crear un chat privado",
+      });
+    }
 
     // Verificar si ya existe un chat con los mismos participantes
     const chatExistente = await Chat.findOne({
@@ -26,6 +84,30 @@ router.post("/", async (req, res) => {
     return res.status(201).json({ message: "Chat creado correctamente", chat });
   } catch (error) {
     return res.status(500).json({ error: "Error al crear chat", detalle: error.message });
+  }
+});
+
+// Unirse o abrir chat grupal de un evento
+router.post("/evento/:eventoId/unirse", unirseAChatEvento);
+
+// Obtener chat grupal de un evento
+router.get("/evento/:eventoId", async (req, res) => {
+  try {
+    const chat = await Chat.findOne({
+      tipo: "evento",
+      eventoId: req.params.eventoId,
+    })
+      .populate("participantes", "nombre nombreUsuario email fotoPerfil")
+      .populate("eventoId", "nombre fecha");
+
+    if (!chat) return res.status(404).json({ error: "Chat no encontrado" });
+
+    return res.json({ message: "Chat obtenido correctamente", chat });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error al obtener chat del evento",
+      detalle: error.message,
+    });
   }
 });
 
@@ -50,6 +132,7 @@ router.get("/usuario/:usuarioId", async (req, res) => {
     })
       .populate("participantes", "nombre nombreUsuario email fotoPerfil")
       .populate("conexionId")
+      .populate("eventoId", "nombre fecha")
       .sort({ updatedAt: -1 });
 
     res.json({ message: "Chats obtenidos correctamente", chats });
