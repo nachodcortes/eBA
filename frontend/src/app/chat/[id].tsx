@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
@@ -19,6 +20,7 @@ import {
   Send,
   Shield,
   Trash2,
+  Users,
   X,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -65,6 +67,7 @@ export default function ChatDetailScreen() {
   const [mensajeRespondiendo, setMensajeRespondiendo] = useState<Mensaje | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const posicionesMensajes = useRef<Record<string, number>>({});
+  const [modalParticipantesVisible, setModalParticipantesVisible] = useState(false);
 
   const scrollAlFinal = (animado = true) => {
     requestAnimationFrame(() => {
@@ -334,6 +337,29 @@ export default function ChatDetailScreen() {
       alert("No se pudo conectar con el servidor.");
     }
   };
+  const salirDelGrupo = async () => {
+    try {
+      if (!usuarioActualId || !id) return;
+
+      const response = await fetch(`${API_URL}/api/chats/${id}/salir`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuarioId: usuarioActualId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo salir del grupo.");
+        return;
+      }
+
+      setModalParticipantesVisible(false);
+      router.replace("/chats" as any);
+    } catch (error) {
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
 
   const formatearHora = (fecha?: string) => {
     if (!fecha) return "";
@@ -412,10 +438,19 @@ export default function ChatDetailScreen() {
           <Text style={styles.subtitle}>{subtituloChat}</Text>
         </View>
 
-        <View style={styles.secureIcon}>
-          <Shield size={18} color="#6D28E8" />
-        </View>
-      </View>
+        {esChatGrupal ? (
+          <TouchableOpacity
+            style={styles.secureIcon}
+            onPress={() => setModalParticipantesVisible(true)}
+          >
+            <Users size={18} color="#6D28E8" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.secureIcon}>
+            <Shield size={18} color="#6D28E8" />
+          </View>
+        )}
+      </View>  
 
       <ScrollView
         ref={scrollRef}
@@ -640,12 +675,72 @@ export default function ChatDetailScreen() {
           disabled={!texto.trim() || enviando}
           onPress={enviarMensaje}
         >
-          <Send size={18} color="#FFFFFF" />
+         <Send size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
+
+      {/* Modal participantes */}
+      <Modal
+        visible={modalParticipantesVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalParticipantesVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Participantes</Text>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setModalParticipantesVisible(false)}
+              >
+                <X size={19} color="#8D8A99" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              {chat?.participantes.map((participante) => {
+                const esYo = (participante._id || participante.id) === usuarioActualId;
+                return (
+                  <View key={participante._id || participante.id} style={styles.participanteRow}>
+                    <ProfileAvatarLink usuario={participante} size={42} disabled />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.participanteNombre}>{participante.nombre || "Usuario"}</Text>
+                      <Text style={styles.participanteUser}>@{participante.nombreUsuario || "usuario"}</Text>
+                    </View>
+                    {esYo && (
+                      <View style={styles.yoBadge}>
+                        <Text style={styles.yoBadgeText}>Yo</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.leaveButton}
+              activeOpacity={0.85}
+              onPress={() =>
+                confirmarAccion(
+                  "Salir del grupo",
+                  "¿Querés salir de este grupo?",
+                  salirDelGrupo
+                )
+              }
+            >
+              <Text style={styles.leaveButtonText}>Salir del grupo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </KeyboardAvoidingView>
   );
+  
+  
 }
+
 
 const styles = StyleSheet.create({
   screen: {
@@ -943,5 +1038,80 @@ const styles = StyleSheet.create({
   },
   sendDisabled: {
     opacity: 0.45,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 34,
+    maxHeight: "75%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#332047",
+  },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F4F6FB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  participanteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  participanteNombre: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#2D2934",
+  },
+  participanteUser: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#8D8A99",
+    marginTop: 2,
+  },
+  yoBadge: {
+    backgroundColor: "#F1ECFF",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  yoBadgeText: {
+    fontSize: 11,
+    color: "#6D28E8",
+    fontWeight: "900",
+  },
+  leaveButton: {
+    marginTop: 16,
+    backgroundColor: "#FFF3F5",
+    borderWidth: 1,
+    borderColor: "#FFD8DD",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  leaveButtonText: {
+    color: "#E53935",
+    fontSize: 15,
   },
 });

@@ -67,7 +67,6 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Verificar si ya existe un chat con los mismos participantes
     const chatExistente = await Chat.findOne({
       participantes: { $all: participantes, $size: participantes.length }
     });
@@ -76,21 +75,17 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Ya existe un chat con estos participantes" });
     }
 
-    // Crear nuevo chat
     const chat = new Chat({ conexionId, participantes });
     await chat.save();
 
-    // 🔹 IMPORTANTE: usar return para cerrar la respuesta
     return res.status(201).json({ message: "Chat creado correctamente", chat });
   } catch (error) {
     return res.status(500).json({ error: "Error al crear chat", detalle: error.message });
   }
 });
 
-// Unirse o abrir chat grupal de un evento
 router.post("/evento/:eventoId/unirse", unirseAChatEvento);
 
-// Obtener chat grupal de un evento
 router.get("/evento/:eventoId", async (req, res) => {
   try {
     const chat = await Chat.findOne({
@@ -111,7 +106,6 @@ router.get("/evento/:eventoId", async (req, res) => {
   }
 });
 
-// Obtener todos los chats
 router.get("/", async (req, res) => {
   try {
     const chats = await Chat.find()
@@ -123,7 +117,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Obtener chats de un usuario
 router.get("/usuario/:usuarioId", async (req, res) => {
   try {
     const chats = await Chat.find({
@@ -141,7 +134,6 @@ router.get("/usuario/:usuarioId", async (req, res) => {
   }
 });
 
-// Obtener chat existente entre dos usuarios
 router.get("/entre/:usuario1Id/:usuario2Id", async (req, res) => {
   try {
     const { usuario1Id, usuario2Id } = req.params;
@@ -160,7 +152,34 @@ router.get("/entre/:usuario1Id/:usuario2Id", async (req, res) => {
   }
 });
 
-// Obtener un chat por ID
+router.post("/:id/salir", async (req, res) => {
+  try {
+    const { usuarioId } = req.body;
+
+    if (!usuarioId) {
+      return res.status(400).json({ error: "usuarioId es obligatorio" });
+    }
+
+    const chat = await Chat.findById(req.params.id);
+    if (!chat) return res.status(404).json({ error: "Chat no encontrado" });
+
+    chat.participantes = chat.participantes.filter(
+      (id) => String(id) !== String(usuarioId)
+    );
+
+    if (chat.participantes.length === 0) {
+      await Mensaje.deleteMany({ chatId: chat._id });
+      await Chat.findByIdAndDelete(chat._id);
+      return res.json({ message: "Chat eliminado por no tener participantes" });
+    }
+
+    await chat.save();
+    return res.json({ message: "Saliste del grupo correctamente" });
+  } catch (error) {
+    return res.status(500).json({ error: "Error al salir del grupo", detalle: error.message });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   try {
     const chat = await Chat.findById(req.params.id)
@@ -173,7 +192,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Eliminar un chat
 router.delete("/:id", async (req, res) => {
   try {
     const chat = await Chat.findById(req.params.id);
@@ -181,10 +199,7 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Chat no encontrado" });
     }
 
-    //  Eliminar mensajes asociados al chat
     await Mensaje.deleteMany({ chatId: chat._id });
-
-    //  Eliminar el chat
     await Chat.findByIdAndDelete(chat._id);
 
     res.json({ message: "Chat y mensajes eliminados correctamente" });
