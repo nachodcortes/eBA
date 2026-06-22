@@ -23,6 +23,7 @@ type EventListCardProps = {
   onHeartPress?: () => void;
 
   showRemove?: boolean;
+  removeLabel?: string;
   onRemovePress?: () => void;
 
   status?: string;
@@ -35,6 +36,7 @@ export default function EventListCard({
   isFavorite = false,
   onHeartPress,
   showRemove = false,
+  removeLabel,
   onRemovePress,
   status,
 }: EventListCardProps) {
@@ -79,6 +81,20 @@ export default function EventListCard({
             </Text>
           </View>
         )}
+
+        {showRemove && removeLabel && (
+          <Pressable
+            style={styles.removeTextButton}
+            hitSlop={8}
+            onPress={(e) => {
+              e.stopPropagation();
+              onRemovePress?.();
+            }}
+          >
+            <Trash2 size={13} color="#EF4444" />
+            <Text style={styles.removeTextButtonLabel}>{removeLabel}</Text>
+          </Pressable>
+        )}
       </View>
 
       {showHeart && (
@@ -98,7 +114,7 @@ export default function EventListCard({
         </Pressable>
       )}
 
-      {showRemove && (
+      {showRemove && !removeLabel && (
         <Pressable
           style={styles.removeButton}
           hitSlop={12}
@@ -194,6 +210,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 999,
     elevation: 999,
+  },
+  removeTextButton: {
+    marginTop: 8,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#FFF1F2",
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  removeTextButtonLabel: {
+    color: "#EF4444",
+    fontSize: 11,
+    fontWeight: "900",
   },
   statusPill: {
     marginTop: 5,
