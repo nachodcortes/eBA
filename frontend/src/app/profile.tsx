@@ -367,7 +367,7 @@ export default function ProfileScreen() {
         <View style={styles.profileStats}>
           <View style={styles.profileStatItem}>
             <Text style={styles.profileStatNumber}>{eventosActivos.length}</Text>
-            <Text style={styles.profileStatLabel}>interesados</Text>
+            <Text style={styles.profileStatLabel}>asistidos</Text>
           </View>
 
           <View style={styles.profileStatDivider} />
@@ -398,7 +398,7 @@ export default function ProfileScreen() {
                 tabActiva === "asistidos" && styles.profileTabTextActive,
               ]}
             >
-              Interesados
+              Asistidos
             </Text>
           </TouchableOpacity>
 
@@ -459,6 +459,7 @@ export default function ProfileScreen() {
                     evento={evento}
                     status={obtenerEstadoEvento(evento, asistencia.estado)}
                     showRemove
+                    removeLabel="Sacar de asistidos"
                     onRemovePress={() => sacarDeMisEventos(asistencia._id)}
                     onPress={() => irAEvento(evento._id)}
                   />
