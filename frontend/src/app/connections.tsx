@@ -14,6 +14,8 @@ import {
   MessageCircle,
   ShieldOff,
   Send,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -59,6 +61,15 @@ export default function ConnectionsScreen() {
   const [solicitudesEnviadas, setSolicitudesEnviadas] = useState<Solicitud[]>([]);
   const [sugerencias, setSugerencias] = useState<SugerenciaConexion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mostrarTodasConexiones, setMostrarTodasConexiones] = useState(false);
+  const [mostrarTodasSugerencias, setMostrarTodasSugerencias] = useState(false);
+
+  const conexionesVisibles = mostrarTodasConexiones
+    ? conexiones
+    : conexiones.slice(0, 3);
+  const sugerenciasVisibles = mostrarTodasSugerencias
+    ? sugerencias
+    : sugerencias.slice(0, 3);
 
   useFocusEffect(
   useCallback(() => {
@@ -452,7 +463,7 @@ export default function ConnectionsScreen() {
       | undefined;
 
     if (!ubicacion) return "Ubicación no cargada";
-    if (typeof ubicacion === "string") return ubicacion || "Ubicación no cargada";
+    if (typeof ubicacion === "string") return ubicacion || "";
 
     return ubicacion.ciudad || "Ubicación no cargada";
   };
@@ -613,7 +624,9 @@ export default function ConnectionsScreen() {
           })
         )}
 
-        <SectionHeader title="Mis conexiones" />
+        <View style={styles.sectionHeaderRow}>
+          <SectionHeader title={`Mis conexiones (${conexiones.length})`} />
+        </View>
 
         {conexiones.length === 0 ? (
           <EmptyState
@@ -622,7 +635,8 @@ export default function ConnectionsScreen() {
             text="Cuando aceptes solicitudes o conectes con personas sugeridas, van a aparecer acá."
           />
         ) : (
-          conexiones.map((conexion) => {
+          <>
+          {conexionesVisibles.map((conexion) => {
             const usuarioConexion = obtenerOtroUsuario(conexion);
             const intereses = obtenerIntereses(usuarioConexion);
 
@@ -643,10 +657,6 @@ export default function ConnectionsScreen() {
 
                   <Text style={styles.detail}>
                     {obtenerUbicacion(usuarioConexion)}
-                  </Text>
-
-                  <Text style={styles.eventText}>
-                    Ya pueden coordinar para ir a eventos
                   </Text>
 
                   <View style={styles.chipsRow}>
@@ -675,7 +685,27 @@ export default function ConnectionsScreen() {
                 </TouchableOpacity>
               </View>
             );
-          })
+          })}
+
+          {conexiones.length > 3 && (
+            <TouchableOpacity
+              style={styles.expandButton}
+              activeOpacity={0.85}
+              onPress={() => setMostrarTodasConexiones((prev) => !prev)}
+            >
+              <Text style={styles.expandButtonText}>
+                {mostrarTodasConexiones
+                  ? "Ver menos"
+                  : `Ver ${conexiones.length - 3} más`}
+              </Text>
+              {mostrarTodasConexiones ? (
+                <ChevronUp size={18} color="#7528F0" />
+              ) : (
+                <ChevronDown size={18} color="#7528F0" />
+              )}
+            </TouchableOpacity>
+          )}
+          </>
         )}
 
         <SectionHeader title="Sugerencias para vos" />
@@ -688,7 +718,8 @@ export default function ConnectionsScreen() {
             </Text>
           </View>
         ) : (
-          sugerencias.map((sugerencia) => {
+          <>
+          {sugerenciasVisibles.map((sugerencia) => {
             const usuarioSugerido = sugerencia.usuario;
             const usuarioSugeridoId = obtenerIdUsuario(usuarioSugerido);
 
@@ -722,7 +753,27 @@ export default function ConnectionsScreen() {
                 </TouchableOpacity>
               </View>
             );
-          })
+          })}
+
+          {sugerencias.length > 3 && (
+            <TouchableOpacity
+              style={styles.expandButton}
+              activeOpacity={0.85}
+              onPress={() => setMostrarTodasSugerencias((prev) => !prev)}
+            >
+              <Text style={styles.expandButtonText}>
+                {mostrarTodasSugerencias
+                  ? "Ver menos"
+                  : `Ver ${sugerencias.length - 3} más`}
+              </Text>
+              {mostrarTodasSugerencias ? (
+                <ChevronUp size={18} color="#7528F0" />
+              ) : (
+                <ChevronDown size={18} color="#7528F0" />
+              )}
+            </TouchableOpacity>
+          )}
+          </>
         )}
       </ScrollView>
 
@@ -816,6 +867,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#8D8A99",
     fontWeight: "700",
+  },
+  sectionHeaderRow: {
+    marginBottom: -2,
   },
   requestCard: {
     backgroundColor: "#FFFFFF",
@@ -938,5 +992,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
+  },
+  expandButton: {
+    height: 44,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E0D9F4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -4,
+    marginBottom: 24,
+  },
+  expandButtonText: {
+    color: "#7528F0",
+    fontSize: 13,
+    fontWeight: "900",
+    marginRight: 6,
   },
 });

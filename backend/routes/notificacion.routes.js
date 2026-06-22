@@ -2,10 +2,41 @@ const express = require("express");
 const router = express.Router();
 
 const Notificacion = require("../models/Notificacion");
+const SolicitudConexion = require("../models/SolicitudConexion");
+
 const obtenerLimit = (req, defecto = 10, maximo = 50) => {
   const valor = Number(req.query.limit);
   if (!Number.isFinite(valor) || valor <= 0) return defecto;
   return Math.min(Math.floor(valor), maximo);
+};
+
+const limpiarSolicitudesObsoletas = async (usuarioId) => {
+  const notificacionesSolicitud = await Notificacion.find({
+    usuarioId,
+    entidadTipo: "solicitud",
+  })
+    .select("_id entidadId")
+    .lean();
+
+  if (notificacionesSolicitud.length === 0) return;
+
+  const solicitudesPendientes = await SolicitudConexion.find({
+    estado: "pendiente",
+    $or: [{ usuariosolicitante: usuarioId }, { usuarioreceptor: usuarioId }],
+  })
+    .select("_id")
+    .lean();
+
+  const idsPendientes = new Set(
+    solicitudesPendientes.map((solicitud) => String(solicitud._id))
+  );
+  const idsObsoletas = notificacionesSolicitud
+    .filter((notificacion) => !idsPendientes.has(String(notificacion.entidadId)))
+    .map((notificacion) => notificacion._id);
+
+  if (idsObsoletas.length > 0) {
+    await Notificacion.deleteMany({ _id: { $in: idsObsoletas } });
+  }
 };
 
 // Crear notificación
@@ -61,6 +92,8 @@ router.get("/", async (req, res) => {
 // Obtener resumen liviano de notificaciones de un usuario
 router.get("/usuario/:usuarioId/resumen", async (req, res) => {
   try {
+    await limpiarSolicitudesObsoletas(req.params.usuarioId);
+
     const noLeidas = await Notificacion.countDocuments({
       usuarioId: req.params.usuarioId,
       leida: false,
@@ -82,6 +115,9 @@ router.get("/usuario/:usuarioId/resumen", async (req, res) => {
 router.get("/usuario/:usuarioId", async (req, res) => {
   try {
     const limit = obtenerLimit(req, 10, 50);
+
+    await limpiarSolicitudesObsoletas(req.params.usuarioId);
+
     const notificaciones = await Notificacion.find({
       usuarioId: req.params.usuarioId,
     })

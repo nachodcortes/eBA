@@ -20,6 +20,8 @@ type Notificacion = {
   _id: string;
   mensaje: string;
   tipo: TipoNotificacion;
+  entidadTipo?: string;
+  entidadId?: string;
   leida: boolean;
 };
 
@@ -72,6 +74,34 @@ export default function InAppNotificationToast() {
     }).start();
 
     timeoutRef.current = setTimeout(ocultar, TOAST_VISIBLE_MS);
+  };
+
+  const abrirNotificacion = () => {
+    if (!notificacion) return;
+
+    ocultar();
+
+    if (notificacion.tipo === "chat" && notificacion.entidadId) {
+      router.push(`/chat/${notificacion.entidadId}` as any);
+      return;
+    }
+
+    if (notificacion.tipo === "comentario" && notificacion.entidadId) {
+      router.push(`/publication-detail/${notificacion.entidadId}` as any);
+      return;
+    }
+
+    if (notificacion.tipo === "evento" && notificacion.entidadId) {
+      router.push(`/event-detail/${notificacion.entidadId}` as any);
+      return;
+    }
+
+    if (notificacion.tipo === "conexion") {
+      router.push("/connections" as any);
+      return;
+    }
+
+    router.push("/notifications" as any);
   };
 
   const panResponder = useRef(
@@ -171,10 +201,7 @@ export default function InAppNotificationToast() {
     >
       <Pressable
         style={styles.toast}
-        onPress={() => {
-          ocultar();
-          router.push("/notifications" as any);
-        }}
+        onPress={abrirNotificacion}
       >
         <View style={styles.iconBox}>
           <Icono size={19} color="#FFFFFF" />

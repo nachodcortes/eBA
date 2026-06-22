@@ -185,10 +185,12 @@ const obtenerConexionesCompletas = async (usuarioId, limit = 10) => {
     .filter(Boolean);
 };
 
-const obtenerSugerencias = async (usuarioId, limit) => {
-  const conexiones = await Conexion.find(filtroConexionesUsuario(usuarioId))
-    .select("usuario1 usuario2 usuario1Id usuario2Id")
-    .lean();
+const obtenerSugerencias = async (usuarioId, limit, conexionesDirectas = null) => {
+  const conexiones =
+    conexionesDirectas ||
+    (await Conexion.find(filtroConexionesUsuario(usuarioId))
+      .select("usuario1 usuario2 usuario1Id usuario2Id")
+      .lean());
 
   const idsConexionesDirectas = conexiones.map((conexion) => {
     const usuario1Id = obtenerIdConexion(conexion.usuario1 || conexion.usuario1Id);
@@ -245,6 +247,7 @@ const obtenerSugerencias = async (usuarioId, limit) => {
       ? usuario2Id
       : usuario1Id;
 
+    if (!candidatoId) return;
     if (idsExcluir.has(candidatoId)) return;
 
     conteos.set(candidatoId, (conteos.get(candidatoId) || 0) + 1);
@@ -307,11 +310,16 @@ router.get("/resumen/:usuarioId", async (req, res) => {
       return !otroId || !idsBloqueados.has(otroId);
     });
     const solicitudes = await armarSolicitudes(solicitudesVisibles);
+    const sugerencias = await obtenerSugerencias(
+      usuarioId,
+      6,
+      conexionesVisibles
+    );
 
     return res.json({
       message: "Resumen de conexiones obtenido correctamente",
       conexiones: conexionesVisibles,
-      sugerencias: [],
+      sugerencias,
       bloqueos: bloqueos.filter(
         (bloqueo) => String(bloqueo.bloqueadorId) === usuarioId
       ),

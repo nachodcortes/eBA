@@ -120,6 +120,7 @@ export default function ChatDetailScreen() {
 
       if (responseMensajes.ok) {
         setMensajes(dataMensajes.mensajes || []);
+        marcarChatComoLeido(String(id), idUsuario);
         scrollAlFinal(false);
       }
     } catch (error) {
@@ -136,7 +137,24 @@ export default function ChatDetailScreen() {
 
     if (response.ok) {
       setMensajes(data.mensajes || []);
+      if (usuarioActualId) {
+        marcarChatComoLeido(chatId, usuarioActualId);
+      }
       scrollAlFinal(true);
+    }
+  };
+
+  const marcarChatComoLeido = async (chatId: string, idUsuario: string) => {
+    try {
+      await fetch(`${API_URL}/api/mensajes/chat/${chatId}/leidos`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ usuarioId: idUsuario }),
+      });
+    } catch (error) {
+      console.log("Error marcando chat como leído:", error);
     }
   };
 

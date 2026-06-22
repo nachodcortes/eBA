@@ -28,6 +28,13 @@ type Chat = {
   nombre?: string;
   participantes: Usuario[];
   updatedAt?: string;
+  ultimoMensaje?: {
+    contenido?: string;
+    fechaEnvio?: string;
+    usuarioEmisorId?: Usuario | string;
+    eliminado?: boolean;
+  } | null;
+  noLeidos?: number;
 };
 
 type Conexion = {
@@ -287,10 +294,48 @@ export default function ChatsScreen() {
   const formatearFecha = (fecha?: string) => {
     if (!fecha) return "";
 
-    return new Date(fecha).toLocaleDateString("es-AR", {
+    const fechaChat = new Date(fecha);
+    const hoy = new Date();
+    const mismoDia =
+      fechaChat.getDate() === hoy.getDate() &&
+      fechaChat.getMonth() === hoy.getMonth() &&
+      fechaChat.getFullYear() === hoy.getFullYear();
+
+    if (mismoDia) {
+      return fechaChat.toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    return fechaChat.toLocaleDateString("es-AR", {
       day: "2-digit",
       month: "short",
     });
+  };
+
+  const obtenerPreviewChat = (chat: Chat) => {
+    if (chat.ultimoMensaje?.eliminado) return "Mensaje eliminado";
+    if (chat.ultimoMensaje?.contenido) {
+      const emisorId = obtenerIdUsuario(chat.ultimoMensaje.usuarioEmisorId);
+      const esPropio = emisorId && emisorId === usuarioActualId;
+
+      if (esPropio) {
+        return `Vos: ${chat.ultimoMensaje.contenido}`;
+      }
+
+      if (esChatGrupal(chat)) {
+        const emisor = chat.participantes.find(
+          (participante) => obtenerIdUsuario(participante) === emisorId
+        );
+        const nombreEmisor = emisor?.nombre || "Alguien";
+        return `${nombreEmisor}: ${chat.ultimoMensaje.contenido}`;
+      }
+
+      return chat.ultimoMensaje.contenido;
+    }
+    if (esChatGrupal(chat)) return `${chat.participantes?.length || 0} participantes`;
+    return "Tocá para seguir la charla";
   };
 
   const chatsFiltrados = chats.filter((chat) => {
@@ -374,6 +419,7 @@ export default function ChatsScreen() {
             const grupal = esChatGrupal(chat);
             const usuario = grupal ? undefined : obtenerOtroUsuario(chat);
             const nombre = obtenerNombreChat(chat);
+            const noLeidos = chat.noLeidos || 0;
 
             return (
               <TouchableOpacity
@@ -394,18 +440,37 @@ export default function ChatsScreen() {
                 </View>
 
                 <View style={styles.chatInfo}>
-                  <Text style={styles.chatName}>{nombre}</Text>
+                  <View style={styles.chatTitleRow}>
+                    <Text style={styles.chatName} numberOfLines={1}>
+                      {nombre}
+                    </Text>
+                    {noLeidos > 0 && <View style={styles.inlineUnreadDot} />}
+                  </View>
 
-                  <Text style={styles.chatPreview}>
-                    {grupal
-                      ? `${chat.participantes?.length || 0} participantes`
-                      : "Tocá para seguir la charla"}
+                  <Text
+                    style={[
+                      styles.chatPreview,
+                      noLeidos > 0 && styles.chatPreviewUnread,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {obtenerPreviewChat(chat)}
                   </Text>
                 </View>
 
                 <View style={styles.chatMeta}>
-                  <Text style={styles.chatDate}>{formatearFecha(chat.updatedAt)}</Text>
-                  <Text style={styles.chatArrow}>›</Text>
+                  <Text style={styles.chatDate}>
+                    {formatearFecha(chat.ultimoMensaje?.fechaEnvio || chat.updatedAt)}
+                  </Text>
+                  {noLeidos > 0 ? (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>
+                        {noLeidos > 9 ? "9+" : noLeidos}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.chatArrow}>›</Text>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -565,21 +630,39 @@ const styles = StyleSheet.create({
   },
   chatInfo: {
     flex: 1,
+    minWidth: 0,
+  },
+  chatTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
   },
   chatName: {
     fontSize: 16,
     fontWeight: "900",
     color: "#2D2934",
-    marginBottom: 4,
+    flex: 1,
+  },
+  inlineUnreadDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#6D28E8",
+    marginLeft: 6,
   },
   chatPreview: {
     fontSize: 13,
     color: "#8D8A99",
     fontWeight: "700",
   },
+  chatPreviewUnread: {
+    color: "#5F5C68",
+    fontWeight: "800",
+  },
   chatMeta: {
     alignItems: "flex-end",
     marginLeft: 8,
+    minWidth: 44,
   },
   chatDate: {
     fontSize: 12,
@@ -590,6 +673,20 @@ const styles = StyleSheet.create({
   chatArrow: {
     color: "#6D28E8",
     fontSize: 22,
+    fontWeight: "900",
+  },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#6D28E8",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  unreadBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
     fontWeight: "900",
   },
   modalOverlay: {

@@ -183,6 +183,61 @@ router.get("/chat/:chatId", async (req, res) => {
   }
 });
 
+// Marcar todos los mensajes de un chat como leídos para un usuario
+router.put("/chat/:chatId/leidos", async (req, res) => {
+  try {
+    const { usuarioId } = req.body;
+    const { chatId } = req.params;
+
+    if (!usuarioId) {
+      return res.status(400).json({ error: "usuarioId es obligatorio" });
+    }
+
+    const chat = await Chat.findOne({
+      _id: chatId,
+      participantes: usuarioId,
+      estado: "activo",
+    })
+      .select("_id")
+      .lean();
+
+    if (!chat) {
+      return res.status(404).json({ error: "Chat no encontrado" });
+    }
+
+    const [mensajesActualizados, notificacionesActualizadas] = await Promise.all([
+      Mensaje.updateMany(
+        {
+          chatId,
+          usuarioEmisorId: { $ne: usuarioId },
+          leido: false,
+        },
+        { $set: { leido: true } }
+      ),
+      Notificacion.updateMany(
+        {
+          usuarioId,
+          entidadTipo: "chat",
+          entidadId: chatId,
+          leida: false,
+        },
+        { $set: { leida: true } }
+      ),
+    ]);
+
+    res.json({
+      message: "Chat marcado como leído",
+      mensajesActualizados: mensajesActualizados.modifiedCount || 0,
+      notificacionesActualizadas: notificacionesActualizadas.modifiedCount || 0,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error al marcar chat como leído",
+      detalle: error.message,
+    });
+  }
+});
+
 // Marcar mensaje como leído
 router.put("/:id/leido", async (req, res) => {
   try {

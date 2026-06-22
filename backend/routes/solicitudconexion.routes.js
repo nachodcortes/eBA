@@ -235,6 +235,10 @@ router.put("/:id/aceptar", async (req, res) => {
     solicitud.estado = "aceptada";
 
     await solicitud.save();
+    await Notificacion.deleteMany({
+      entidadTipo: "solicitud",
+      entidadId: solicitud._id,
+    });
 
     const receptor = await Usuario.findById(solicitud.usuarioreceptor).select(
       "nombre nombreUsuario"
@@ -279,6 +283,10 @@ router.put("/:id/rechazar", async (req, res) => {
     // aca se busca si existe la solicitud y la borra para liberrar espacio, si no la encuetra entonces no hay nada que borrar
     
     await SolicitudConexion.findByIdAndDelete(req.params.id);
+    await Notificacion.deleteMany({
+      entidadTipo: "solicitud",
+      entidadId: solicitud._id,
+    });
 
     res.json({
       mensaje: "Solicitud rechazada y eliminada correctamente",
@@ -385,6 +393,10 @@ router.delete("/:id", async (req, res) => {
     }
 
     await SolicitudConexion.findByIdAndDelete(req.params.id);
+    await Notificacion.deleteMany({
+      entidadTipo: "solicitud",
+      entidadId: solicitud._id,
+    });
 
     res.json({
       mensaje: "Solicitud cancelada correctamente",

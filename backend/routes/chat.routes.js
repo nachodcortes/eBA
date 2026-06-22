@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 const Chat = require("../models/Chat");
 const Mensaje = require("../models/Mensaje");
@@ -345,6 +346,43 @@ router.get("/resumen/:usuarioId", async (req, res) => {
         idsBloqueados.has(obtenerIdConexion(participante))
       );
     });
+    const chatIds = chatsVisibles.map((chat) => chat._id);
+    const usuarioObjectId = mongoose.Types.ObjectId.isValid(usuarioId)
+      ? new mongoose.Types.ObjectId(usuarioId)
+      : usuarioId;
+    const [mensajesRecientes, noLeidosPorChat] = await Promise.all([
+      Mensaje.find({ chatId: { $in: chatIds } })
+        .select("chatId contenido fechaEnvio usuarioEmisorId eliminado")
+        .sort({ fechaEnvio: -1 })
+        .limit(Math.max(chatIds.length * 5, 10))
+        .lean(),
+      Mensaje.aggregate([
+        {
+          $match: {
+            chatId: { $in: chatIds },
+            usuarioEmisorId: { $ne: usuarioObjectId },
+            leido: false,
+            eliminado: { $ne: true },
+          },
+        },
+        { $group: { _id: "$chatId", total: { $sum: 1 } } },
+      ]),
+    ]);
+    const ultimoMensajePorChat = new Map();
+    mensajesRecientes.forEach((mensaje) => {
+      const chatId = String(mensaje.chatId);
+      if (!ultimoMensajePorChat.has(chatId)) {
+        ultimoMensajePorChat.set(chatId, mensaje);
+      }
+    });
+    const noLeidos = new Map(
+      noLeidosPorChat.map((item) => [String(item._id), item.total])
+    );
+    const chatsConResumen = chatsVisibles.map((chat) => ({
+      ...chat,
+      ultimoMensaje: ultimoMensajePorChat.get(String(chat._id)) || null,
+      noLeidos: noLeidos.get(String(chat._id)) || 0,
+    }));
     const conexionesVisibles = conexiones.filter((conexion) => {
       const usuario1Id = obtenerIdConexion(conexion.usuario1);
       const usuario2Id = obtenerIdConexion(conexion.usuario2);
@@ -354,7 +392,7 @@ router.get("/resumen/:usuarioId", async (req, res) => {
 
     return res.json({
       message: "Resumen de chats obtenido correctamente",
-      chats: chatsVisibles,
+      chats: chatsConResumen,
       conexiones: conexionesVisibles,
       bloqueos: bloqueos.filter(
         (bloqueo) => String(bloqueo.bloqueadorId) === usuarioId

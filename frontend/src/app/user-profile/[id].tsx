@@ -339,7 +339,7 @@ export default function UserProfileScreen() {
             <View style={styles.infoTextBox}>
               <Text style={styles.infoLabel}>Ubicación</Text>
               <Text style={styles.infoValue}>
-                {usuario.ubicacionAproximada || "Sin ubicación cargada"}
+                {usuario.ubicacionAproximada || ""}
               </Text>
             </View>
           </View>

@@ -17,6 +17,8 @@ import {
   UserPlus,
   Clock3,
   Users,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -84,6 +86,7 @@ export default function EventPeopleScreen() {
   >("personas");
 
   const [busquedaPersonas, setBusquedaPersonas] = useState("");
+  const [mostrarTodasPersonas, setMostrarTodasPersonas] = useState(false);
 
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [comentariosPorPublicacion, setComentariosPorPublicacion] = useState<
@@ -832,6 +835,25 @@ export default function EventPeopleScreen() {
       intereses.includes(texto)
     );
   });
+  const personasOrdenadas = [...personasFiltradas].sort((a, b) => {
+    const usuarioAId = obtenerUsuarioId(a.usuarioId);
+    const usuarioBId = obtenerUsuarioId(b.usuarioId);
+    const puntajeA =
+      (esAmigo(usuarioAId) ? 30 : 0) +
+      (tieneSolicitudPendiente(usuarioAId) ? 20 : 0) +
+      ((a.usuarioId?.intereses?.length || 0) > 0 ? 5 : 0);
+    const puntajeB =
+      (esAmigo(usuarioBId) ? 30 : 0) +
+      (tieneSolicitudPendiente(usuarioBId) ? 20 : 0) +
+      ((b.usuarioId?.intereses?.length || 0) > 0 ? 5 : 0);
+
+    return puntajeB - puntajeA;
+  });
+  const limitePersonas = busquedaPersonas.trim() ? 5 : 4;
+  const personasVisibles = mostrarTodasPersonas
+    ? personasOrdenadas
+    : personasOrdenadas.slice(0, limitePersonas);
+  const personasOcultas = Math.max(personasOrdenadas.length - limitePersonas, 0);
 
   if (loading) {
     return <LoadingScreen text="Cargando personas..." />;
@@ -975,7 +997,7 @@ export default function EventPeopleScreen() {
               <View>
                 <Text style={styles.peopleSectionTitle}>Personas que van</Text>
                 <Text style={styles.peopleSectionSubtitle}>
-                  {personasFiltradas.length} perfiles para conocer antes del evento
+                  {personasFiltradas.length} perfiles, primero tus contactos y pendientes
                 </Text>
               </View>
 
@@ -995,7 +1017,10 @@ export default function EventPeopleScreen() {
                 placeholder="Buscar personas por nombre o intereses..."
                 placeholderTextColor="#A7A7B0"
                 value={busquedaPersonas}
-                onChangeText={setBusquedaPersonas}
+                onChangeText={(texto) => {
+                  setBusquedaPersonas(texto);
+                  setMostrarTodasPersonas(false);
+                }}
               />
             </View>
 
@@ -1010,13 +1035,14 @@ export default function EventPeopleScreen() {
                 title="Todavía no hay otros interesados"
                 text="Cuando otras personas toquen “Quiero ir”, van a aparecer en esta lista."
               />
-            ) : personasFiltradas.length === 0 ? (
+            ) : personasOrdenadas.length === 0 ? (
               <EmptyState
                 title="No encontramos personas"
                 text="Probá buscar otro nombre, email o interés."
               />
             ) : (
-              personasFiltradas.map((asistencia) => {
+              <>
+              {personasVisibles.map((asistencia) => {
                 const usuario = asistencia.usuarioId;
                 const receptorId = obtenerUsuarioId(usuario);
                 const yaEsAmigo = esAmigo(receptorId);
@@ -1082,7 +1108,27 @@ export default function EventPeopleScreen() {
                     )}
                   </View>
                 );
-              })
+              })}
+
+              {personasOrdenadas.length > limitePersonas && (
+                <TouchableOpacity
+                  style={styles.peopleExpandButton}
+                  activeOpacity={0.85}
+                  onPress={() => setMostrarTodasPersonas((prev) => !prev)}
+                >
+                  <Text style={styles.peopleExpandText}>
+                    {mostrarTodasPersonas
+                      ? "Ver menos personas"
+                      : `Ver ${personasOcultas} más`}
+                  </Text>
+                  {mostrarTodasPersonas ? (
+                    <ChevronUp size={18} color="#6D28E8" />
+                  ) : (
+                    <ChevronDown size={18} color="#6D28E8" />
+                  )}
+                </TouchableOpacity>
+              )}
+              </>
             )}
           </View>
         )}
@@ -1493,6 +1539,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1ECFF",
     borderWidth: 1,
     borderColor: "#E1D6FA",
+  },
+  peopleExpandButton: {
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E0D9F4",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    marginBottom: 20,
+  },
+  peopleExpandText: {
+    color: "#6D28E8",
+    fontSize: 13,
+    fontWeight: "900",
+    marginRight: 6,
   },
 
   publicacionesContainer: {
