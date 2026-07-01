@@ -28,7 +28,7 @@ import {
   ChevronUp,
   X,
   ShieldCheck,
-} from "lucide-react-native"; 
+} from "lucide-react-native";
 
 import BottomNav from "../components/BottomNav";
 import LoadingScreen from "../components/LoadingScreen";
@@ -68,6 +68,7 @@ export default function ProfileScreen() {
     useState(false);
   const [eliminandoCuenta, setEliminandoCuenta] = useState(false);
   const [tabActiva, setTabActiva] = useState<PerfilTab>("asistidos");
+  const [esManagerActual, setEsManagerActual] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -90,6 +91,7 @@ export default function ProfileScreen() {
       const usuarioId = usuarioParseado.id || usuarioParseado._id;
 
       setUsuario(usuarioParseado);
+      setEsManagerActual(!!usuarioParseado.esManager);
 
       if (usuarioId) {
         try {
@@ -100,6 +102,9 @@ export default function ProfileScreen() {
 
           if (responseResumen.ok) {
             setUsuario(dataResumen.usuario || usuarioParseado);
+            setEsManagerActual(
+              !!(dataResumen.usuario?.esManager ?? usuarioParseado.esManager)
+            );
             setAsistencias(dataResumen.asistencias || []);
             setFavoritos(dataResumen.favoritos || []);
             setPublicaciones(dataResumen.publicaciones || []);
@@ -321,7 +326,8 @@ export default function ProfileScreen() {
   if (loading) {
     return <LoadingScreen text="Cargando perfil..." />;
   }
-return (
+
+  return (
     <View style={styles.screen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -364,179 +370,183 @@ return (
           </TouchableOpacity>
         </View>
 
-        <View style={styles.profileStats}>
-          <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatNumber}>{eventosActivos.length}</Text>
-            <Text style={styles.profileStatLabel}>asistidos</Text>
-          </View>
+        {!esManagerActual && (
+          <>
+            <View style={styles.profileStats}>
+              <View style={styles.profileStatItem}>
+                <Text style={styles.profileStatNumber}>{eventosActivos.length}</Text>
+                <Text style={styles.profileStatLabel}>asistidos</Text>
+              </View>
 
-          <View style={styles.profileStatDivider} />
+              <View style={styles.profileStatDivider} />
 
-          <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatNumber}>{favoritos.length}</Text>
-            <Text style={styles.profileStatLabel}>guardados</Text>
-          </View>
+              <View style={styles.profileStatItem}>
+                <Text style={styles.profileStatNumber}>{favoritos.length}</Text>
+                <Text style={styles.profileStatLabel}>guardados</Text>
+              </View>
 
-          <View style={styles.profileStatDivider} />
+              <View style={styles.profileStatDivider} />
 
-          <View style={styles.profileStatItem}>
-            <Text style={styles.profileStatNumber}>{publicaciones.length}</Text>
-            <Text style={styles.profileStatLabel}>publis</Text>
-          </View>
-        </View>
-
-        <View style={styles.profileTabs}>
-          <TouchableOpacity
-            style={[styles.profileTab, tabActiva === "asistidos" && styles.profileTabActive]}
-            activeOpacity={0.85}
-            onPress={() => setTabActiva("asistidos")}
-          >
-            <Calendar size={15} color={tabActiva === "asistidos" ? "#FFFFFF" : "#6D28E8"} />
-            <Text
-              style={[
-                styles.profileTabText,
-                tabActiva === "asistidos" && styles.profileTabTextActive,
-              ]}
-            >
-              Asistidos
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.profileTab, tabActiva === "guardados" && styles.profileTabActive]}
-            activeOpacity={0.85}
-            onPress={() => setTabActiva("guardados")}
-          >
-            <Bookmark size={15} color={tabActiva === "guardados" ? "#FFFFFF" : "#6D28E8"} />
-            <Text
-              style={[
-                styles.profileTabText,
-                tabActiva === "guardados" && styles.profileTabTextActive,
-              ]}
-            >
-              Guardados
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.profileTab,
-              tabActiva === "publicaciones" && styles.profileTabActive,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => setTabActiva("publicaciones")}
-          >
-            <MessageSquare
-              size={15}
-              color={tabActiva === "publicaciones" ? "#FFFFFF" : "#6D28E8"}
-            />
-            <Text
-              style={[
-                styles.profileTabText,
-                tabActiva === "publicaciones" && styles.profileTabTextActive,
-              ]}
-            >
-              Publicaciones
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {tabActiva === "asistidos" && (
-          <View style={styles.eventsBlock}>
-            {eventosActivos.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Todavía no marcaste eventos con “Quiero ir”.
-              </Text>
-            ) : (
-              eventosActivos.slice(0, 4).map((asistencia) => {
-                const evento = asistencia.eventoId as Evento;
-
-                if (!evento) return null;
-
-                return (
-                  <EventListCard
-                    key={asistencia._id}
-                    evento={evento}
-                    status={obtenerEstadoEvento(evento, asistencia.estado)}
-                    showRemove
-                    removeLabel="Sacar de asistidos"
-                    onRemovePress={() => sacarDeMisEventos(asistencia._id)}
-                    onPress={() => irAEvento(evento._id)}
-                  />
-                );
-              })
-            )}
-          </View>
-        )}
-
-        {tabActiva === "guardados" && (
-          <View style={styles.eventsBlock}>
-            {favoritos.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Todavía no guardaste eventos. Tocá el corazón en Explorar.
-              </Text>
-            ) : (
-              favoritos.map((favorito) => {
-                const evento = favorito.eventoId as Evento;
-
-                if (!evento) return null;
-
-                return (
-                  <EventListCard
-                    key={favorito._id}
-                    evento={evento}
-                    status={
-                      eventoYaPaso(evento.fecha) ? "Evento finalizado" : "Guardado"
-                    }
-                    showRemove
-                    onRemovePress={() => sacarFavorito(favorito._id)}
-                    onPress={() => irAEvento(evento._id)}
-                  />
-                );
-              })
-            )}
-          </View>
-        )}
-
-        {tabActiva === "publicaciones" && (
-          <View style={styles.eventsBlock}>
-            {publicaciones.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Todavía no hiciste publicaciones en eventos.
-              </Text>
-            ) : (
-              publicaciones.map((publicacion) => (
-                <PublicationPreviewCard
-                  key={publicacion._id}
-                  publicacion={publicacion}
-                  comentariosCount={publicacion.comentariosCount || 0}
-                  onPress={() =>
-                    router.push(`/publication-detail/${publicacion._id}` as any)
-                  }
-                />
-              ))
-            )}
-          </View>
-        )}
-
-        <View style={styles.infoCard}>
-          <SectionHeader title="Tus intereses" />
-
-          {usuario?.intereses && usuario.intereses.length > 0 ? (
-            <View style={styles.chipsContainer}>
-              {usuario.intereses.map((interes) => (
-                <View key={interes} style={styles.chip}>
-                  <Heart size={13} color="#7528F0" fill="#7528F0" />
-                  <Text style={styles.chipText}>{interes}</Text>
-                </View>
-              ))}
+              <View style={styles.profileStatItem}>
+                <Text style={styles.profileStatNumber}>{publicaciones.length}</Text>
+                <Text style={styles.profileStatLabel}>publis</Text>
+              </View>
             </View>
-          ) : (
-            <Text style={styles.emptyText}>
-              Todavía no tenés intereses cargados.
-            </Text>
-          )}
-        </View>
+
+            <View style={styles.profileTabs}>
+              <TouchableOpacity
+                style={[styles.profileTab, tabActiva === "asistidos" && styles.profileTabActive]}
+                activeOpacity={0.85}
+                onPress={() => setTabActiva("asistidos")}
+              >
+                <Calendar size={15} color={tabActiva === "asistidos" ? "#FFFFFF" : "#6D28E8"} />
+                <Text
+                  style={[
+                    styles.profileTabText,
+                    tabActiva === "asistidos" && styles.profileTabTextActive,
+                  ]}
+                >
+                  Asistidos
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.profileTab, tabActiva === "guardados" && styles.profileTabActive]}
+                activeOpacity={0.85}
+                onPress={() => setTabActiva("guardados")}
+              >
+                <Bookmark size={15} color={tabActiva === "guardados" ? "#FFFFFF" : "#6D28E8"} />
+                <Text
+                  style={[
+                    styles.profileTabText,
+                    tabActiva === "guardados" && styles.profileTabTextActive,
+                  ]}
+                >
+                  Guardados
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.profileTab,
+                  tabActiva === "publicaciones" && styles.profileTabActive,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => setTabActiva("publicaciones")}
+              >
+                <MessageSquare
+                  size={15}
+                  color={tabActiva === "publicaciones" ? "#FFFFFF" : "#6D28E8"}
+                />
+                <Text
+                  style={[
+                    styles.profileTabText,
+                    tabActiva === "publicaciones" && styles.profileTabTextActive,
+                  ]}
+                >
+                  Publicaciones
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {tabActiva === "asistidos" && (
+              <View style={styles.eventsBlock}>
+                {eventosActivos.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    Todavía no marcaste eventos con “Quiero ir”.
+                  </Text>
+                ) : (
+                  eventosActivos.slice(0, 4).map((asistencia) => {
+                    const evento = asistencia.eventoId as Evento;
+
+                    if (!evento) return null;
+
+                    return (
+                      <EventListCard
+                        key={asistencia._id}
+                        evento={evento}
+                        status={obtenerEstadoEvento(evento, asistencia.estado)}
+                        showRemove
+                        removeLabel="Sacar de asistidos"
+                        onRemovePress={() => sacarDeMisEventos(asistencia._id)}
+                        onPress={() => irAEvento(evento._id)}
+                      />
+                    );
+                  })
+                )}
+              </View>
+            )}
+
+            {tabActiva === "guardados" && (
+              <View style={styles.eventsBlock}>
+                {favoritos.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    Todavía no guardaste eventos. Tocá el corazón en Explorar.
+                  </Text>
+                ) : (
+                  favoritos.map((favorito) => {
+                    const evento = favorito.eventoId as Evento;
+
+                    if (!evento) return null;
+
+                    return (
+                      <EventListCard
+                        key={favorito._id}
+                        evento={evento}
+                        status={
+                          eventoYaPaso(evento.fecha) ? "Evento finalizado" : "Guardado"
+                        }
+                        showRemove
+                        onRemovePress={() => sacarFavorito(favorito._id)}
+                        onPress={() => irAEvento(evento._id)}
+                      />
+                    );
+                  })
+                )}
+              </View>
+            )}
+
+            {tabActiva === "publicaciones" && (
+              <View style={styles.eventsBlock}>
+                {publicaciones.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    Todavía no hiciste publicaciones en eventos.
+                  </Text>
+                ) : (
+                  publicaciones.map((publicacion) => (
+                    <PublicationPreviewCard
+                      key={publicacion._id}
+                      publicacion={publicacion}
+                      comentariosCount={publicacion.comentariosCount || 0}
+                      onPress={() =>
+                        router.push(`/publication-detail/${publicacion._id}` as any)
+                      }
+                    />
+                  ))
+                )}
+              </View>
+            )}
+
+            <View style={styles.infoCard}>
+              <SectionHeader title="Tus intereses" />
+
+              {usuario?.intereses && usuario.intereses.length > 0 ? (
+                <View style={styles.chipsContainer}>
+                  {usuario.intereses.map((interes) => (
+                    <View key={interes} style={styles.chip}>
+                      <Heart size={13} color="#7528F0" fill="#7528F0" />
+                      <Text style={styles.chipText}>{interes}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyText}>
+                  Todavía no tenés intereses cargados.
+                </Text>
+              )}
+            </View>
+          </>
+        )}
 
         {usuario?.esManager && (
           <TouchableOpacity
@@ -551,76 +561,78 @@ return (
           </TouchableOpacity>
         )}
 
-        <View style={styles.settingsContainer}>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            activeOpacity={0.85}
-            onPress={() => setMostrarConfiguracion(!mostrarConfiguracion)}
-          >
-            <View style={styles.settingsLeft}>
-              <Settings size={20} color="#7528F0" />
-              <Text style={styles.settingsText}>Configuración</Text>
-            </View>
-
-            {mostrarConfiguracion ? (
-              <ChevronUp size={20} color="#7528F0" />
-            ) : (
-              <ChevronDown size={20} color="#7528F0" />
-            )}
-          </TouchableOpacity>
-
-          {mostrarConfiguracion && (
-            <View style={styles.settingsDropdown}>
-              <View style={styles.blockedHeader}>
-                <ShieldOff size={18} color="#7528F0" />
-                <Text style={styles.blockedTitle}>Personas bloqueadas</Text>
+        {!esManagerActual && (
+          <View style={styles.settingsContainer}>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              activeOpacity={0.85}
+              onPress={() => setMostrarConfiguracion(!mostrarConfiguracion)}
+            >
+              <View style={styles.settingsLeft}>
+                <Settings size={20} color="#7528F0" />
+                <Text style={styles.settingsText}>Configuración</Text>
               </View>
 
-              {bloqueos.length === 0 ? (
-                <Text style={styles.blockedEmpty}>
-                  No tenés usuarios bloqueados.
-                </Text>
+              {mostrarConfiguracion ? (
+                <ChevronUp size={20} color="#7528F0" />
               ) : (
-                bloqueos.map((bloqueo) => (
-                  <View key={bloqueo._id} style={styles.blockedRow}>
-                    <View style={styles.blockedAvatar}>
-                      <Text style={styles.blockedAvatarText}>
-                        {(bloqueo.bloqueadoId?.nombre || "U").charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-
-                    <View style={styles.blockedInfo}>
-                      <Text style={styles.blockedName}>
-                        {bloqueo.bloqueadoId?.nombre || "Usuario"}
-                      </Text>
-                      <Text style={styles.blockedDetail}>
-                        {bloqueo.bloqueadoId?.email || "Bloqueado"}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.unblockButton}
-                      activeOpacity={0.85}
-                      onPress={() => desbloquearUsuario(bloqueo)}
-                    >
-                      <Unlock size={16} color="#7528F0" />
-                    </TouchableOpacity>
-                  </View>
-                ))
+                <ChevronDown size={20} color="#7528F0" />
               )}
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.deleteAccountButton}
-                activeOpacity={0.85}
-                onPress={abrirConfirmacionEliminar}
-                disabled={eliminandoCuenta}
-              >
-                <Trash2 size={18} color="#E53935" />
-                <Text style={styles.deleteAccountText}>Eliminar cuenta</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+            {mostrarConfiguracion && (
+              <View style={styles.settingsDropdown}>
+                <View style={styles.blockedHeader}>
+                  <ShieldOff size={18} color="#7528F0" />
+                  <Text style={styles.blockedTitle}>Personas bloqueadas</Text>
+                </View>
+
+                {bloqueos.length === 0 ? (
+                  <Text style={styles.blockedEmpty}>
+                    No tenés usuarios bloqueados.
+                  </Text>
+                ) : (
+                  bloqueos.map((bloqueo) => (
+                    <View key={bloqueo._id} style={styles.blockedRow}>
+                      <View style={styles.blockedAvatar}>
+                        <Text style={styles.blockedAvatarText}>
+                          {(bloqueo.bloqueadoId?.nombre || "U").charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+
+                      <View style={styles.blockedInfo}>
+                        <Text style={styles.blockedName}>
+                          {bloqueo.bloqueadoId?.nombre || "Usuario"}
+                        </Text>
+                        <Text style={styles.blockedDetail}>
+                          {bloqueo.bloqueadoId?.email || "Bloqueado"}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.unblockButton}
+                        activeOpacity={0.85}
+                        onPress={() => desbloquearUsuario(bloqueo)}
+                      >
+                        <Unlock size={16} color="#7528F0" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+
+                <TouchableOpacity
+                  style={styles.deleteAccountButton}
+                  activeOpacity={0.85}
+                  onPress={abrirConfirmacionEliminar}
+                  disabled={eliminandoCuenta}
+                >
+                  <Trash2 size={18} color="#E53935" />
+                  <Text style={styles.deleteAccountText}>Eliminar cuenta</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.logoutButton}
