@@ -586,6 +586,25 @@ export default function PublicationDetailScreen() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {!esMiPublicacion && !!usuarioActual?.esManager && (
+              <View style={styles.postActions}>
+                <TouchableOpacity
+                  style={styles.deleteActionButton}
+                  activeOpacity={0.85}
+                  disabled={eliminandoPublicacion}
+                  onPress={() =>
+                    confirmarAccion(
+                      "Eliminar publicación",
+                      "¿Estás seguro de que querés eliminar esta publicación? También se eliminarán sus comentarios.",
+                      eliminarPublicacion
+                    )
+                  }
+                >
+                  <Trash2 size={17} color="#E53935" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {editandoPublicacion ? (
@@ -716,6 +735,7 @@ export default function PublicationDetailScreen() {
                   () => eliminarComentario(comentarioId)
                 )
               }
+              puedeAdministrar={!!usuarioActual?.esManager}
             />
           ))
         )}

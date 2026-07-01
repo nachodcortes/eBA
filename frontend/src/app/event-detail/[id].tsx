@@ -41,6 +41,7 @@ export default function EventDetail() {
   const [asistenciaId, setAsistenciaId] = useState<string | null>(null);
   const [favoritoId, setFavoritoId] = useState<string | null>(null);
   const [guardandoFavorito, setGuardandoFavorito] = useState(false);
+  const [esManager, setEsManager] = useState(false);
 
   useEffect(() => {
     iniciarDetalle();
@@ -62,6 +63,7 @@ export default function EventDetail() {
 
       const usuario = JSON.parse(usuarioGuardado);
       const usuarioId = usuario.id || usuario._id;
+      setEsManager(!!usuario.esManager);
 
       const cacheKey = `evento:${String(id)}`;
       const eventoCacheado = getCached<Evento>(cacheKey);
@@ -316,12 +318,14 @@ export default function EventDetail() {
 
           <Text style={styles.title}>{eventData.nombre}</Text>
 
-          <View style={styles.interestedRow}>
-            <Heart size={17} color="#EF5B5B" fill="#EF5B5B" />
-            <Text style={styles.interestedText}>
-              Personas interesadas en asistir a este evento
-            </Text>
-          </View>
+          {!esManager && (
+            <View style={styles.interestedRow}>
+              <Heart size={17} color="#EF5B5B" fill="#EF5B5B" />
+              <Text style={styles.interestedText}>
+                Personas interesadas en asistir a este evento
+              </Text>
+            </View>
+          )}
 
           <View style={styles.infoList}>
             <View style={styles.infoItem}>
@@ -369,67 +373,90 @@ export default function EventDetail() {
               "Evento ideal para conocer personas con intereses similares y vivir la experiencia acompañado."}
           </Text>
 
-          <TouchableOpacity
-            style={styles.secondaryCard}
-            activeOpacity={0.85}
-            onPress={() => router.push(`/event-people/${eventData._id}` as any)}
-          >
-            <View>
-              <Text style={styles.secondaryTitle}>Personas interesadas</Text>
-              <Text style={styles.secondaryText}>
-                Descubrí quiénes quieren ir y conectá antes del evento.
-              </Text>
-            </View>
-            <Text style={styles.secondaryArrow}>›</Text>
-          </TouchableOpacity>
-
-          {!eventoFinalizado ? (
+          {!esManager && (
             <TouchableOpacity
-              style={[
-                styles.mainButton,
-                asistenciaId && styles.mainButtonRemove,
-                registrando && styles.mainButtonDisabled,
-              ]}
+              style={styles.secondaryCard}
               activeOpacity={0.85}
-              onPress={toggleAsistencia}
-              disabled={registrando}
+              onPress={() => router.push(`/event-people/${eventData._id}` as any)}
             >
-              <Text style={styles.mainButtonText}>
-                {registrando
-                  ? asistenciaId
-                    ? "Sacando..."
-                    : "Registrando..."
-                  : asistenciaId
-                    ? "Ya no quiero ir"
-                    : "Quiero ir"}
-              </Text>
+              <View>
+                <Text style={styles.secondaryTitle}>Personas interesadas</Text>
+                <Text style={styles.secondaryText}>
+                  Descubrí quiénes quieren ir y conectá antes del evento.
+                </Text>
+              </View>
+              <Text style={styles.secondaryArrow}>›</Text>
             </TouchableOpacity>
-          ) : (
-            <View style={[styles.mainButton, styles.finishedButton]}>
-              <Text style={styles.finishedButtonText}>Evento finalizado</Text>
-            </View>
           )}
 
-          <TouchableOpacity
-            style={[styles.saveButton, favoritoId && styles.saveButtonActive]}
-            activeOpacity={0.85}
-            onPress={toggleFavorito}
-            disabled={guardandoFavorito}
-          >
-            <Bookmark
-              size={18}
-              color={favoritoId ? "#FFFFFF" : "#7528F0"}
-              fill={favoritoId ? "#FFFFFF" : "transparent"}
-            />
-            <Text
-              style={[
-                styles.saveButtonText,
-                favoritoId && styles.saveButtonTextActive,
-              ]}
+          {esManager && (
+            <TouchableOpacity
+              style={styles.secondaryCard}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push(`/event-people/${eventData._id}?admin=1` as any)
+              }
             >
-              {favoritoId ? "Guardado" : "Guardar evento"}
-            </Text>
-          </TouchableOpacity>
+              <View>
+                <Text style={styles.secondaryTitle}>Panel de administrador</Text>
+                <Text style={styles.secondaryText}>
+                  Vé quién va a asistir y moderá los mensajes del evento.
+                </Text>
+              </View>
+              <Text style={styles.secondaryArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+
+          {!esManager &&
+            (!eventoFinalizado ? (
+              <TouchableOpacity
+                style={[
+                  styles.mainButton,
+                  asistenciaId && styles.mainButtonRemove,
+                  registrando && styles.mainButtonDisabled,
+                ]}
+                activeOpacity={0.85}
+                onPress={toggleAsistencia}
+                disabled={registrando}
+              >
+                <Text style={styles.mainButtonText}>
+                  {registrando
+                    ? asistenciaId
+                      ? "Sacando..."
+                      : "Registrando..."
+                    : asistenciaId
+                      ? "Ya no quiero ir"
+                      : "Quiero ir"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.mainButton, styles.finishedButton]}>
+                <Text style={styles.finishedButtonText}>Evento finalizado</Text>
+              </View>
+            ))}
+
+          {!esManager && (
+            <TouchableOpacity
+              style={[styles.saveButton, favoritoId && styles.saveButtonActive]}
+              activeOpacity={0.85}
+              onPress={toggleFavorito}
+              disabled={guardandoFavorito}
+            >
+              <Bookmark
+                size={18}
+                color={favoritoId ? "#FFFFFF" : "#7528F0"}
+                fill={favoritoId ? "#FFFFFF" : "transparent"}
+              />
+              <Text
+                style={[
+                  styles.saveButtonText,
+                  favoritoId && styles.saveButtonTextActive,
+                ]}
+              >
+                {favoritoId ? "Guardado" : "Guardar evento"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 

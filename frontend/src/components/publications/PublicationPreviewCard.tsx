@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { MessageCircle } from "lucide-react-native";
+import { MessageCircle, Trash2 } from "lucide-react-native";
 import ProfileAvatarLink from "../ProfileAvatarLink";
 import ProfileTextLink from "../ProfileTextLink";
 import { Publicacion } from "../../types/Social";
@@ -9,12 +9,14 @@ type Props = {
   publicacion: Publicacion;
   comentariosCount?: number;
   onPress?: () => void;
+  onDelete?: () => void;
 };
 
 export default function PublicationPreviewCard({
   publicacion,
   comentariosCount = 0,
   onPress,
+  onDelete,
 }: Props) {
   const formatearFecha = (fecha?: string) => {
     if (!fecha) return "";
@@ -53,6 +55,16 @@ export default function PublicationPreviewCard({
             {formatearFecha(publicacion.createdAt)}
           </Text>
         </View>
+
+        {onDelete && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            activeOpacity={0.85}
+            onPress={onDelete}
+          >
+            <Trash2 size={16} color="#E53935" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {onPress ? (
@@ -123,6 +135,14 @@ const styles = StyleSheet.create({
     color: "#8D8A99",
     fontWeight: "700",
     marginTop: 2,
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF1F2",
+    alignItems: "center",
+    justifyContent: "center",
   },
   content: {
     fontSize: 14,

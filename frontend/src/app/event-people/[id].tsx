@@ -418,6 +418,35 @@ export default function EventPeopleScreen() {
     }
   };
 
+  const eliminarPublicacionAdmin = async (publicacionId: string) => {
+    try {
+      const confirmar = confirm(
+        "¿Eliminar esta publicación? También se eliminarán sus comentarios."
+      );
+
+      if (!confirmar) return;
+
+      const response = await fetch(`${API_URL}/api/publicaciones/${publicacionId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo eliminar la publicación.");
+        return;
+      }
+
+      setPublicaciones((prev) =>
+        prev.filter((publicacion) => publicacion._id !== publicacionId)
+      );
+    } catch (error) {
+      console.log("Error al eliminar publicación (admin):", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
+
+
   const refrescarPersonasYConexiones = async () => {
     try {
       if (!id || !usuarioActualId) return;
@@ -871,6 +900,7 @@ export default function EventPeopleScreen() {
   }
 
   const eventoFinalizado = eventoYaPaso(evento.fecha);
+  const modoAdmin = !!usuarioActual?.esManager;
 
   return (
     <View style={styles.screen}>
@@ -1085,27 +1115,28 @@ export default function EventPeopleScreen() {
                       )}
                     </TouchableOpacity>
 
-                    {yaEsAmigo ? (
-                      <TouchableOpacity
-                        style={[styles.personActionButton, styles.friendButton]}
-                        activeOpacity={0.85}
-                        onPress={() => conexion && abrirChat(conexion, receptorId)}
-                      >
-                        <MessageCircle size={17} color="#12A150" />
-                      </TouchableOpacity>
-                    ) : solicitudPendiente ? (
-                      <View style={[styles.personActionButton, styles.pendingButton]}>
-                        <Clock3 size={17} color="#8B35E8" />
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={[styles.personActionButton, styles.connectButton]}
-                        activeOpacity={0.85}
-                        onPress={() => enviarSolicitudConexion(receptorId)}
-                      >
-                        <UserPlus size={17} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    )}
+                    {!modoAdmin &&
+                      (yaEsAmigo ? (
+                        <TouchableOpacity
+                          style={[styles.personActionButton, styles.friendButton]}
+                          activeOpacity={0.85}
+                          onPress={() => conexion && abrirChat(conexion, receptorId)}
+                        >
+                          <MessageCircle size={17} color="#12A150" />
+                        </TouchableOpacity>
+                      ) : solicitudPendiente ? (
+                        <View style={[styles.personActionButton, styles.pendingButton]}>
+                          <Clock3 size={17} color="#8B35E8" />
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[styles.personActionButton, styles.connectButton]}
+                          activeOpacity={0.85}
+                          onPress={() => enviarSolicitudConexion(receptorId)}
+                        >
+                          <UserPlus size={17} color="#FFFFFF" />
+                        </TouchableOpacity>
+                      ))}
                   </View>
                 );
               })}
@@ -1188,6 +1219,11 @@ export default function EventPeopleScreen() {
                     }
                     onPress={() =>
                       router.push(`/publication-detail/${publicacion._id}` as any)
+                    }
+                    onDelete={
+                      modoAdmin
+                        ? () => eliminarPublicacionAdmin(publicacion._id)
+                        : undefined
                     }
                   />
                 );

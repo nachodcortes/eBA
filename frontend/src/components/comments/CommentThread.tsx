@@ -22,6 +22,7 @@ type Props = {
   onEnviarRespuesta: (comentarioPadreId: string) => void;
   onEditarComentario: (comentarioId: string, contenido: string) => void;
   onEliminarComentario: (comentarioId: string) => void;
+  puedeAdministrar?: boolean;
   depth?: number;
 };
 
@@ -34,6 +35,7 @@ export default function CommentThread({
   onEnviarRespuesta,
   onEditarComentario,
   onEliminarComentario,
+  puedeAdministrar = false,
   depth = 0,
 }: Props) {
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
@@ -125,6 +127,18 @@ export default function CommentThread({
                   <Pencil size={14} color="#7528F0" />
                 </TouchableOpacity>
 
+                <TouchableOpacity
+                  style={[styles.iconButton, styles.deleteButton]}
+                  activeOpacity={0.85}
+                  onPress={() => onEliminarComentario(comentario._id)}
+                >
+                  <Trash2 size={14} color="#E53935" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!esMiComentario && puedeAdministrar && !editando && (
+              <View style={styles.commentActions}>
                 <TouchableOpacity
                   style={[styles.iconButton, styles.deleteButton]}
                   activeOpacity={0.85}
@@ -227,6 +241,7 @@ export default function CommentThread({
                 onEnviarRespuesta={onEnviarRespuesta}
                 onEditarComentario={onEditarComentario}
                 onEliminarComentario={onEliminarComentario}
+                puedeAdministrar={puedeAdministrar}
                 depth={depth + 1}
               />
             ))}
