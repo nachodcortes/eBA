@@ -67,6 +67,13 @@ const usuarioSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    sancionadoHasta: {
+      type: Date,
+      default: null,
+    },
+    motivoSancion: {
+      type: String,
+    },
     nombreUsuario: {
       type: String,
       index: {

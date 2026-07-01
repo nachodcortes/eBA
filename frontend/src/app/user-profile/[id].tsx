@@ -4,6 +4,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
   AtSign,
+  Ban,
   CheckCircle,
   Clock3,
   Heart,
@@ -38,6 +39,7 @@ export default function UserProfileScreen() {
 
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [usuarioActualId, setUsuarioActualId] = useState<string | null>(null);
+  const [esManagerActual, setEsManagerActual] = useState(false);
   const [conexion, setConexion] = useState<Conexion | null>(null);
   const [solicitudPendiente, setSolicitudPendiente] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,7 @@ export default function UserProfileScreen() {
       }
 
       setUsuarioActualId(idUsuarioActual);
+      setEsManagerActual(!!usuarioActual.esManager);
 
       const responseUsuario = await fetch(`${API_URL}/api/usuarios/${id}`);
       const dataUsuario = await responseUsuario.json();
@@ -241,6 +244,49 @@ export default function UserProfileScreen() {
     }
   };
 
+  const sancionarUsuario = async () => {
+    try {
+      if (!usuarioActualId || !id) return;
+
+      const confirmar = confirm(
+        `¿Sancionar a ${usuario?.nombre || "este usuario"} por 1 día? No va a poder iniciar sesión durante ese tiempo.`
+      );
+
+      if (!confirmar) return;
+
+      setProcesando(true);
+
+      const response = await fetch(`${API_URL}/api/usuarios/${id}/sancionar`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          managerId: usuarioActualId,
+          motivo: "Sancionado desde el panel de manager",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "No se pudo sancionar al usuario.");
+        return;
+      }
+
+      setUsuario(data.usuario);
+      alert("Usuario sancionado por 1 día.");
+    } catch (error) {
+      console.log("Error sancionando usuario:", error);
+      alert("No se pudo conectar con el servidor.");
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const sancionActiva =
+    !!usuario?.sancionadoHasta && new Date(usuario.sancionadoHasta) > new Date();
+
   if (loading) {
     return <LoadingScreen text="Cargando perfil..." />;
   }
@@ -281,7 +327,34 @@ export default function UserProfileScreen() {
             {usuario.bio || "Todavía no agregó una bio."}
           </Text>
 
-          {!esMiPerfil && (
+          {!esMiPerfil && esManagerActual && (
+            <View style={styles.actionsRow}>
+              {sancionActiva ? (
+                <View style={styles.sancionadoPill}>
+                  <Ban size={16} color="#E53935" />
+                  <Text style={styles.sancionadoPillText}>
+                    Sancionado hasta{" "}
+                    {new Date(usuario.sancionadoHasta as string).toLocaleString(
+                      "es-AR",
+                      { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }
+                    )}
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.blockButton}
+                  activeOpacity={0.85}
+                  disabled={procesando}
+                  onPress={sancionarUsuario}
+                >
+                  <Ban size={17} color="#E53935" />
+                  <Text style={styles.blockButtonText}>Sancionar (1 día)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {!esMiPerfil && !esManagerActual && (
             <View style={styles.actionsRow}>
               {conexion ? (
                 <TouchableOpacity
@@ -495,6 +568,20 @@ const styles = StyleSheet.create({
     marginLeft: 7,
     color: "#E53935",
     fontSize: 13,
+    fontWeight: "900",
+  },
+  sancionadoPill: {
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFF1F2",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sancionadoPillText: {
+    marginLeft: 7,
+    color: "#E53935",
+    fontSize: 12,
     fontWeight: "900",
   },
   infoCard: {

@@ -14,4 +14,6 @@ export type Usuario = {
   emailVerificado?: boolean;
   esOrganizador?: boolean;
   esManager?: boolean;
+  sancionadoHasta?: string | null;
+  motivoSancion?: string;
 };

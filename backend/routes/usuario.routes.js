@@ -129,7 +129,13 @@ const armarUsuarioRespuesta = (usuario, opciones = {}) => {
     emailVerificado: usuario.emailVerificado,
     esOrganizador: usuario.esOrganizador,
     esManager: usuario.esManager,
+    sancionadoHasta: usuario.sancionadoHasta || null,
+    motivoSancion: usuario.motivoSancion || "",
   };
+};
+
+const estaSancionado = (usuario) => {
+  return !!(usuario.sancionadoHasta && new Date(usuario.sancionadoHasta) > new Date());
 };
  
 const esErrorNombreUsuarioDuplicado = (error) =>
@@ -531,6 +537,16 @@ router.post("/login", async (req, res) => {
     if (!usuario.emailVerificado) {
       return res.status(403).json({
         error: "Tenés que verificar tu email antes de iniciar sesión",
+      });
+    }
+
+    if (estaSancionado(usuario)) {
+      return res.status(403).json({
+        error: `Tu cuenta está sancionada hasta el ${new Date(
+          usuario.sancionadoHasta
+        ).toLocaleString("es-AR")}.`,
+        sancionadoHasta: usuario.sancionadoHasta,
+        motivoSancion: usuario.motivoSancion || "",
       });
     }
  
@@ -1222,6 +1238,93 @@ router.get("/buscar/:texto", async (req, res) => {
   }
 });
  
+// PATCH /api/usuarios/:id/sancionar
+// Sanciona a un usuario por 1 día (solo managers pueden hacerlo).
+router.patch("/:id/sancionar", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { managerId, motivo } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Id de usuario inválido" });
+    }
+
+    if (!managerId) {
+      return res.status(400).json({ error: "Falta el id del manager" });
+    }
+
+    const manager = await Usuario.findById(managerId);
+
+    if (!manager || !manager.esManager) {
+      return res.status(403).json({
+        error: "Solo un manager puede sancionar usuarios",
+      });
+    }
+
+    const usuario = await Usuario.findById(id);
+
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const UN_DIA_MS = 24 * 60 * 60 * 1000;
+    usuario.sancionadoHasta = new Date(Date.now() + UN_DIA_MS);
+    usuario.motivoSancion = motivo || "Sancionado por un manager de eBA";
+
+    await usuario.save();
+
+    return res.json({
+      message: "Usuario sancionado por 1 día correctamente",
+      usuario: armarUsuarioRespuesta(usuario),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error al sancionar usuario",
+      detalle: error.message,
+    });
+  }
+});
+
+// PATCH /api/usuarios/:id/levantar-sancion
+router.patch("/:id/levantar-sancion", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { managerId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Id de usuario inválido" });
+    }
+
+    const manager = managerId ? await Usuario.findById(managerId) : null;
+
+    if (!manager || !manager.esManager) {
+      return res.status(403).json({
+        error: "Solo un manager puede levantar una sanción",
+      });
+    }
+
+    const usuario = await Usuario.findById(id);
+
+    if (!usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    usuario.sancionadoHasta = null;
+    usuario.motivoSancion = "";
+    await usuario.save();
+
+    return res.json({
+      message: "Sanción levantada correctamente",
+      usuario: armarUsuarioRespuesta(usuario),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error al levantar la sanción",
+      detalle: error.message,
+    });
+  }
+});
+
 // GET /api/usuarios/:id
 router.get("/:id", async (req, res) => {
   try {
