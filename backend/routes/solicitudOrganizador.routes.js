@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 const SolicitudOrganizador = require("../models/SolicitudOrganizador");
 const Usuario = require("../models/Usuario");
+const Notificacion = require("../models/Notificacion");
 
 const router = express.Router();
 
@@ -188,6 +189,18 @@ router.patch("/:id/estado", async (req, res) => {
    await Usuario.findByIdAndUpdate(solicitud.usuarioId, {
   esOrganizador: estado === "aprobado",
 });
+
+    await Notificacion.create({
+      usuarioId: solicitud.usuarioId,
+      mensaje:
+        estado === "aprobado"
+          ? "¡Felicitaciones! Tu solicitud fue aprobada, ya sos organizador."
+          : `Tu solicitud para ser organizador fue rechazada. Motivo: ${motivoRechazo}`,
+      tipo: "sistema",
+      entidadTipo: "solicitud",
+      entidadId: solicitud._id,
+      actorId: managerId,
+    });
 
     return res.json({
       message:
