@@ -23,7 +23,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../../config/api";
 import LoadingScreen from "../../components/LoadingScreen";
 import { Evento } from "../../types/Evento";
-import { obtenerImagen, formatearFechaLarga } from "../../utils/eventHelpers";
+import {
+  obtenerImagen,
+  formatearFechaLarga,
+  fechaISOaInputLocal,
+  fechaInputAFechaLocal,
+} from "../../utils/eventHelpers";
 import { invalidateEventCaches } from "../../utils/cache";
 
 export default function ManagerEventoDetalle() {
@@ -40,6 +45,7 @@ export default function ManagerEventoDetalle() {
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [categoria, setCategoria] = useState("");
+  const [fecha, setFecha] = useState("");
   const [direccion, setDireccion] = useState("");
   const [ciudad, setCiudad] = useState("");
 
@@ -82,6 +88,7 @@ export default function ManagerEventoDetalle() {
       setNombre(eventoData.nombre || "");
       setDescripcion(eventoData.descripcion || "");
       setCategoria(eventoData.categoria || "");
+      setFecha(fechaISOaInputLocal(eventoData.fecha));
       setDireccion(eventoData.ubicacion?.direccion || "");
       setCiudad(eventoData.ubicacion?.ciudad || "");
     } catch (error) {
@@ -95,6 +102,18 @@ export default function ManagerEventoDetalle() {
   const guardarCambios = async () => {
     if (!evento) return;
 
+    if (!fecha.trim()) {
+      alert("La fecha no puede quedar vacía.");
+      return;
+    }
+
+    const fechaDate = fechaInputAFechaLocal(fecha);
+
+    if (isNaN(fechaDate.getTime())) {
+      alert("La fecha no es válida. Usá el formato AAAA-MM-DD.");
+      return;
+    }
+
     try {
       setGuardando(true);
 
@@ -105,6 +124,7 @@ export default function ManagerEventoDetalle() {
           nombre,
           descripcion,
           categoria,
+          fecha: fechaDate.toISOString(),
           ubicacion: {
             ...evento.ubicacion,
             direccion,
@@ -280,6 +300,14 @@ export default function ManagerEventoDetalle() {
           value={categoria}
           onChangeText={setCategoria}
           placeholder="Categoría"
+        />
+
+        <Text style={styles.label}>Fecha</Text>
+        <TextInput
+          style={styles.input}
+          value={fecha}
+          onChangeText={setFecha}
+          placeholder="AAAA-MM-DD (ej: 2026-08-20)"
         />
 
         <Text style={styles.label}>Dirección</Text>

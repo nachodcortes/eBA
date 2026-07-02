@@ -45,6 +45,29 @@ export const formatearFechaLarga = (fecha?: string) => {
   });
 };
 
+// Convierte un ISO string (UTC) guardado en la base a "AAAA-MM-DD" en hora
+// LOCAL, para que el input muestre el mismo día que el usuario cargó.
+export const fechaISOaInputLocal = (fechaISO?: string) => {
+  if (!fechaISO) return "";
+
+  const fechaObj = new Date(fechaISO);
+
+  if (isNaN(fechaObj.getTime())) return "";
+
+  const anio = fechaObj.getFullYear();
+  const mes = String(fechaObj.getMonth() + 1).padStart(2, "0");
+  const dia = String(fechaObj.getDate()).padStart(2, "0");
+
+  return `${anio}-${mes}-${dia}`;
+};
+
+// Convierte "AAAA-MM-DD" del input a un Date al mediodía LOCAL, para evitar
+// que al pasar a UTC se corra al día anterior.
+export const fechaInputAFechaLocal = (fechaInput: string) => {
+  const [anio, mes, dia] = fechaInput.split("-").map(Number);
+  return new Date(anio, (mes || 1) - 1, dia || 1, 12, 0, 0);
+};
+
 export const eventoYaPaso = (fecha?: string) => {
   if (!fecha) return false;
 
