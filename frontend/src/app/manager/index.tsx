@@ -7,7 +7,7 @@ import {
   Pressable,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { ShieldCheck, Clock3, CheckCircle2, XCircle } from "lucide-react-native";
+import { ShieldCheck, Clock3, CheckCircle2, XCircle, IdCard } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_URL } from "../../config/api";
@@ -31,6 +31,7 @@ export default function ManagerEventos() {
   const [tab, setTab] = useState<Tab>("pendiente");
   const [loading, setLoading] = useState(true);
   const [permitido, setPermitido] = useState<boolean | null>(null);
+  const [organizadoresPendientes, setOrganizadoresPendientes] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -57,9 +58,25 @@ export default function ManagerEventos() {
 
       setPermitido(true);
       await cargarEventos(tab);
+      cargarOrganizadoresPendientes();
     } catch (error) {
       console.log("Error al iniciar panel manager:", error);
       setLoading(false);
+    }
+  };
+
+  const cargarOrganizadoresPendientes = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/solicitudes-organizador/manager/todas?estado=pendiente`
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        setOrganizadoresPendientes((data.solicitudes || []).length);
+      }
+    } catch (error) {
+      console.log("Error cargando solicitudes de organizador:", error);
     }
   };
 
@@ -125,6 +142,36 @@ export default function ManagerEventos() {
           Revisá los eventos creados por organizadores y aprobalos o
           rechazalos antes de que se muestren en la app.
         </Text>
+
+        <Pressable
+          style={styles.organizadoresCard}
+          onPress={() => router.push("/manager/organizadores" as any)}
+        >
+          <View style={styles.organizadoresIconBox}>
+            <IdCard size={20} color="#7528F0" />
+          </View>
+
+          <View style={styles.organizadoresTextBox}>
+            <Text style={styles.organizadoresTitle}>
+              Solicitudes de organizador
+            </Text>
+            <Text style={styles.organizadoresSubtitle}>
+              {organizadoresPendientes > 0
+                ? `${organizadoresPendientes} pendiente${
+                    organizadoresPendientes === 1 ? "" : "s"
+                  } de revisión`
+                : "No hay solicitudes pendientes"}
+            </Text>
+          </View>
+
+          {organizadoresPendientes > 0 && (
+            <View style={styles.organizadoresBadge}>
+              <Text style={styles.organizadoresBadgeText}>
+                {organizadoresPendientes}
+              </Text>
+            </View>
+          )}
+        </Pressable>
 
         <View style={styles.tabs}>
           {TABS.map((item) => {
@@ -208,6 +255,53 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginTop: 8,
     marginBottom: 22,
+  },
+  organizadoresCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
+  },
+  organizadoresIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#F1ECFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  organizadoresTextBox: {
+    flex: 1,
+  },
+  organizadoresTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#332047",
+  },
+  organizadoresSubtitle: {
+    fontSize: 12,
+    color: "#8D8A99",
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  organizadoresBadge: {
+    minWidth: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#E53935",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  organizadoresBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
   },
   tabs: {
     flexDirection: "row",

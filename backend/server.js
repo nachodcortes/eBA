@@ -27,6 +27,7 @@ let pagoRoutes = null;
 let promocionEventoRoutes = null;
 let interesRoutes = null;
 let bloqueoRoutes = null;
+let solicitudOrganizadorRoutes = null;
 
 // IMPORTANTE PARA VERCEL:
 // los require tienen que ser literales, no con variables.
@@ -182,6 +183,17 @@ try {
 } catch (error) {
   rutasEstado.intereses = { estado: "NO CARGÓ", error: error.message };
   console.error("ERROR cargando intereses:", error.message);
+}
+
+try {
+  solicitudOrganizadorRoutes = require("./routes/solicitudOrganizador.routes");
+  rutasEstado.solicitudesOrganizador = { estado: "OK", error: null };
+} catch (error) {
+  rutasEstado.solicitudesOrganizador = {
+    estado: "NO CARGÓ",
+    error: error.message,
+  };
+  console.error("ERROR cargando solicitudesOrganizador:", error.message);
 }
 
 // Middlewares
@@ -385,6 +397,10 @@ if (promocionEventoRoutes) {
 }
 
 if (interesRoutes) app.use("/api/intereses", interesRoutes);
+
+if (solicitudOrganizadorRoutes) {
+  app.use("/api/solicitudes-organizador", solicitudOrganizadorRoutes);
+}
 
 // Manejo de errores internos
 app.use((err, req, res, next) => {

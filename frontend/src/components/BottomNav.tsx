@@ -8,6 +8,7 @@ import {
   User,
   PlusCircle,
   ShieldCheck,
+  IdCard,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -58,6 +59,12 @@ const NAV_ITEMS_MANAGER = [
     matches: ["/manager"],
   },
   {
+    label: "Organizadores",
+    route: "/manager/organizadores",
+    icon: IdCard,
+    matches: ["/manager/organizadores"],
+  },
+  {
     label: "Perfil",
     route: "/profile",
     icon: User,
@@ -84,15 +91,32 @@ export default function BottomNav() {
 
   const items = esManager ? NAV_ITEMS_MANAGER : NAV_ITEMS_USUARIO;
 
-  const isActive = (matches: string[]) => {
-    return matches.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+  const coincidenciaMasLarga = () => {
+    let mejorRuta = "";
+    let mejorLargo = -1;
+
+    items.forEach((item) => {
+      item.matches.forEach((route: string) => {
+        const coincide = pathname === route || pathname.startsWith(`${route}/`);
+        if (coincide && route.length > mejorLargo) {
+          mejorLargo = route.length;
+          mejorRuta = item.route;
+        }
+      });
+    });
+
+    return mejorRuta;
   };
+
+  const rutaActiva = coincidenciaMasLarga();
+
+  const isActive = (itemRoute: string) => itemRoute === rutaActiva;
 
   return (
     <View style={styles.navbar}>
       {items.map((item) => {
         const Icon = item.icon;
-        const active = isActive(item.matches);
+        const active = isActive(item.route);
 
         return (
           <TouchableOpacity

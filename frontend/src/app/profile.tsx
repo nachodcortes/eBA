@@ -28,6 +28,7 @@ import {
   ChevronUp,
   X,
   ShieldCheck,
+  IdCard,
 } from "lucide-react-native";
 
 import BottomNav from "../components/BottomNav";
@@ -561,6 +562,19 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
+        {!esManagerActual && !usuario?.esOrganizador && (
+          <TouchableOpacity
+            style={styles.organizadorButton}
+            activeOpacity={0.85}
+            onPress={() => router.push("/ser-organizador" as any)}
+          >
+            <IdCard size={20} color="#7528F0" />
+            <Text style={styles.organizadorButtonText}>
+              Convertite en organizador
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {!esManagerActual && (
           <View style={styles.settingsContainer}>
             <TouchableOpacity
@@ -963,6 +977,23 @@ const styles = StyleSheet.create({
   },
   managerButtonText: {
     color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  organizadorButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F1ECFF",
+    borderRadius: 18,
+    paddingVertical: 15,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: "#E0D9F4",
+  },
+  organizadorButtonText: {
+    color: "#7528F0",
     fontSize: 14,
     fontWeight: "900",
   },
