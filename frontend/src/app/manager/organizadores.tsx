@@ -251,75 +251,85 @@ export default function ManagerOrganizadores() {
                           </View>
                         )}
 
-                      {tab === "pendiente" && (
-                        <>
-                          {rechazandoId === solicitud._id && (
-                            <TextInput
-                              style={styles.input}
-                              value={motivo}
-                              onChangeText={setMotivo}
-                              placeholder="Contale al usuario por qué se rechaza"
-                              multiline
-                            />
-                          )}
-
-                          <View style={styles.actionsRow}>
-                            <Pressable
-                              style={[styles.actionButton, styles.approveButton]}
-                              onPress={() =>
-                                actualizarEstado(solicitud._id, "aprobado")
-                              }
-                              disabled={procesando}
-                            >
-                              {procesando ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                              ) : (
-                                <>
-                                  <CheckCircle2 size={18} color="#FFFFFF" />
-                                  <Text style={styles.actionButtonText}>
-                                    Aprobar
-                                  </Text>
-                                </>
-                              )}
-                            </Pressable>
-
-                            <Pressable
-                              style={[styles.actionButton, styles.rejectButton]}
-                              onPress={() => {
-                                if (rechazandoId !== solicitud._id) {
-                                  setRechazandoId(solicitud._id);
-                                  return;
-                                }
-
-                                if (!motivo.trim()) {
-                                  alert("Contale al usuario el motivo del rechazo.");
-                                  return;
-                                }
-
-                                actualizarEstado(
-                                  solicitud._id,
-                                  "rechazado",
-                                  motivo.trim()
-                                );
-                              }}
-                              disabled={procesando}
-                            >
-                              {procesando ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                              ) : (
-                                <>
-                                  <XCircle size={18} color="#FFFFFF" />
-                                  <Text style={styles.actionButtonText}>
-                                    {rechazandoId === solicitud._id
-                                      ? "Confirmar rechazo"
-                                      : "Rechazar"}
-                                  </Text>
-                                </>
-                              )}
-                            </Pressable>
-                          </View>
-                        </>
+                      {tab !== "pendiente" && (
+                        <Text style={styles.modificarAviso}>
+                          {tab === "aprobado"
+                            ? "Esta solicitud ya fue aprobada. Podés revocarla y rechazarla si hace falta."
+                            : "Esta solicitud ya fue rechazada. Podés aprobarla si te arrepentiste."}
+                        </Text>
                       )}
+
+                      {rechazandoId === solicitud._id && (
+                        <TextInput
+                          style={styles.input}
+                          value={motivo}
+                          onChangeText={setMotivo}
+                          placeholder="Contale al usuario por qué se rechaza"
+                          multiline
+                        />
+                      )}
+
+                      <View style={styles.actionsRow}>
+                        {solicitud.estado !== "aprobado" && (
+                          <Pressable
+                            style={[styles.actionButton, styles.approveButton]}
+                            onPress={() =>
+                              actualizarEstado(solicitud._id, "aprobado")
+                            }
+                            disabled={procesando}
+                          >
+                            {procesando ? (
+                              <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                              <>
+                                <CheckCircle2 size={18} color="#FFFFFF" />
+                                <Text style={styles.actionButtonText}>
+                                  Aprobar
+                                </Text>
+                              </>
+                            )}
+                          </Pressable>
+                        )}
+
+                        {solicitud.estado !== "rechazado" && (
+                          <Pressable
+                            style={[styles.actionButton, styles.rejectButton]}
+                            onPress={() => {
+                              if (rechazandoId !== solicitud._id) {
+                                setRechazandoId(solicitud._id);
+                                return;
+                              }
+
+                              if (!motivo.trim()) {
+                                alert("Contale al usuario el motivo del rechazo.");
+                                return;
+                              }
+
+                              actualizarEstado(
+                                solicitud._id,
+                                "rechazado",
+                                motivo.trim()
+                              );
+                            }}
+                            disabled={procesando}
+                          >
+                            {procesando ? (
+                              <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                              <>
+                                <XCircle size={18} color="#FFFFFF" />
+                                <Text style={styles.actionButtonText}>
+                                  {rechazandoId === solicitud._id
+                                    ? "Confirmar rechazo"
+                                    : solicitud.estado === "aprobado"
+                                    ? "Revocar y rechazar"
+                                    : "Rechazar"}
+                                </Text>
+                              </>
+                            )}
+                          </Pressable>
+                        )}
+                      </View>
                     </View>
                   )}
                 </View>
@@ -458,6 +468,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#7A2E2E",
     lineHeight: 19,
+  },
+  modificarAviso: {
+    fontSize: 12,
+    color: "#8D8A99",
+    lineHeight: 18,
+    marginBottom: 12,
   },
   input: {
     backgroundColor: "#F7F5FF",
