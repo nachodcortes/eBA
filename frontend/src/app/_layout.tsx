@@ -1,16 +1,41 @@
 import { useEffect, useRef } from "react";
-import { AppState } from "react-native";
-import { Stack, router } from "expo-router";
-import { View } from "react-native";
+import { AppState, Platform, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Stack, router, usePathname } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import DesktopNav from "../components/DesktopNav";
 import InAppNotificationToast from "../components/InAppNotificationToast";
 import { API_URL } from "../config/api";
 
 const VERIFICAR_SANCION_CADA_MS = 30000;
+const FRAMED_ROUTES = [
+  "/home",
+  "/explore",
+  "/event-detail",
+  "/event-people",
+  "/chats",
+  "/chat",
+  "/connections",
+  "/user-profile",
+  "/profile",
+  "/edit-profile",
+  "/favorites",
+  "/notifications",
+  "/publication-detail",
+  "/ser-organizador",
+  "/mis-eventos",
+  "/crear-evento",
+  "/manager",
+];
 
 export default function RootLayout() {
   const verificandoRef = useRef(false);
+  const pathname = usePathname();
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 900;
+  const shouldUseAppFrame = FRAMED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
   const verificarSancion = async () => {
     if (verificandoRef.current) return;
@@ -68,9 +93,41 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }} />
+    <View
+      style={[
+        styles.root,
+        isDesktopWeb && shouldUseAppFrame && styles.webAppFrame,
+      ]}
+    >
+      {isDesktopWeb && shouldUseAppFrame && <DesktopNav />}
+      <View
+        style={[
+          styles.stackShell,
+          isDesktopWeb && shouldUseAppFrame && styles.webStackShell,
+        ]}
+      >
+        <Stack screenOptions={{ headerShown: false }} />
+      </View>
       <InAppNotificationToast />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  stackShell: {
+    flex: 1,
+  },
+  webAppFrame: {
+    marginLeft: 252,
+    minHeight: "100vh" as any,
+    backgroundColor: "#F7F5FF",
+  },
+  webStackShell: {
+    width: "100%",
+    maxWidth: 1180,
+    alignSelf: "center",
+  },
+});

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator
 import { router, useLocalSearchParams } from "expo-router";
 import InterestChips from "../components/InterestChips";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 import { API_URL } from "../config/api";
 import { Interes } from "../types/Interes";
 
@@ -45,7 +46,7 @@ export default function RegisterInterestsGoogleScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <AuthLayout>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
@@ -84,13 +85,20 @@ export default function RegisterInterestsGoogleScreen() {
           <Text style={styles.primaryButtonText}>Continuar</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F7F5FF" },
-  container: { paddingHorizontal: 34, paddingTop: 64, paddingBottom: 50, alignItems: "center" },
+  container: {
+    paddingHorizontal: 34,
+    paddingTop: 64,
+    paddingBottom: 50,
+    alignItems: "center",
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
+  },
   title: { fontSize: 28, fontWeight: "800", color: "#332047", textAlign: "center", marginBottom: 10 },
   highlight: { color: "#7528F0" },
   subtitle: { fontSize: 14, color: "#8D8A99", textAlign: "center", lineHeight: 21, marginBottom: 34 },

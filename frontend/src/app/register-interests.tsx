@@ -10,6 +10,7 @@ import {
 import { router } from "expo-router";
 import InterestChips from "../components/InterestChips";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 import { API_URL } from "../config/api";
 import { Interes } from "../types/Interes";
 
@@ -61,7 +62,7 @@ export default function RegisterInterestsScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <AuthLayout>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
@@ -106,20 +107,19 @@ export default function RegisterInterestsScreen() {
           <Text style={styles.backText}>Volver</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F5FF",
-  },
   container: {
     paddingHorizontal: 34,
     paddingTop: 64,
     paddingBottom: 50,
     alignItems: "center",
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
   },
   logo: {
     width: 130,

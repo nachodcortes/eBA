@@ -13,6 +13,7 @@ import { EyeOff, Eye } from "lucide-react-native";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 import {
   validarContrasenia,
   CONTRASENIA_EJEMPLO,
@@ -193,7 +194,7 @@ export default function RegisterScreen() {
   };
  
   return (
-    <View style={styles.screen}>
+    <AuthLayout>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
@@ -366,19 +367,18 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </AuthLayout>
   );
 }
- 
+
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F5FF",
-  },
   container: {
     paddingHorizontal: 34,
     paddingTop: 52,
     paddingBottom: 70,
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
   },
   logo: {
     width: 120,

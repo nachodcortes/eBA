@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { ArrowLeft, Camera, IdCard, Clock3, CheckCircle2, XCircle } from "lucide-react-native";
@@ -57,6 +59,8 @@ const comprimirFotoDocumento = async (uri: string) => {
 };
 
 export default function SerOrganizadorScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 900;
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
   const [foto, setFoto] = useState<string>("");
   const [solicitud, setSolicitud] = useState<SolicitudOrganizador | null>(null);
@@ -181,82 +185,87 @@ export default function SerOrganizadorScreen() {
     <View style={styles.screen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          isDesktopWeb && styles.webContainer,
+        ]}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={22} color="#332047" />
-        </TouchableOpacity>
+        <View style={[styles.card, isDesktopWeb && styles.webCard]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={22} color="#332047" />
+          </TouchableOpacity>
 
-        <View style={styles.headerRow}>
-          <IdCard size={22} color="#7528F0" />
-          <Text style={styles.title}>Convertite en organizador</Text>
-        </View>
-
-        <Text style={styles.subtitle}>
-          Para poder crear eventos necesitamos validar tu identidad. Sacale
-          una foto clara a tu documento (DNI, libreta o pasaporte) y un
-          manager de eBA la va a revisar.
-        </Text>
-
-        {solicitud?.estado === "pendiente" ? (
-          <View style={[styles.estadoCard, styles.estadoPendiente]}>
-            <Clock3 size={22} color="#B7791F" />
-            <Text style={styles.estadoTitulo}>Solicitud en revisión</Text>
-            <Text style={styles.estadoTexto}>
-              Ya enviaste tu documento. Te vamos a avisar apenas un manager la
-              revise.
-            </Text>
+          <View style={styles.headerRow}>
+            <IdCard size={22} color="#7528F0" />
+            <Text style={styles.title}>Convertite en organizador</Text>
           </View>
-        ) : (
-          <>
-            {solicitud?.estado === "rechazado" && (
-              <View style={[styles.estadoCard, styles.estadoRechazado]}>
-                <XCircle size={22} color="#E53935" />
-                <Text style={styles.estadoTitulo}>Solicitud rechazada</Text>
-                <Text style={styles.estadoTexto}>
-                  {solicitud.motivoRechazo ||
-                    "No pudimos validar tu documento. Probá enviarlo de nuevo."}
-                </Text>
-              </View>
-            )}
 
-            <TouchableOpacity
-              style={styles.fotoBox}
-              activeOpacity={0.85}
-              onPress={elegirFoto}
-              disabled={procesandoImagen}
-            >
-              {procesandoImagen ? (
-                <ActivityIndicator color="#7528F0" />
-              ) : foto ? (
-                <Image source={{ uri: foto }} style={styles.fotoPreview} />
-              ) : (
-                <View style={styles.fotoPlaceholder}>
-                  <Camera size={28} color="#7528F0" />
-                  <Text style={styles.fotoPlaceholderText}>
-                    Tocá para sacar o elegir una foto del documento
+          <Text style={styles.subtitle}>
+            Para poder crear eventos necesitamos validar tu identidad. Sacale
+            una foto clara a tu documento (DNI, libreta o pasaporte) y un
+            manager de eBA la va a revisar.
+          </Text>
+
+          {solicitud?.estado === "pendiente" ? (
+            <View style={[styles.estadoCard, styles.estadoPendiente]}>
+              <Clock3 size={22} color="#B7791F" />
+              <Text style={styles.estadoTitulo}>Solicitud en revisión</Text>
+              <Text style={styles.estadoTexto}>
+                Ya enviaste tu documento. Te vamos a avisar apenas un manager la
+                revise.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {solicitud?.estado === "rechazado" && (
+                <View style={[styles.estadoCard, styles.estadoRechazado]}>
+                  <XCircle size={22} color="#E53935" />
+                  <Text style={styles.estadoTitulo}>Solicitud rechazada</Text>
+                  <Text style={styles.estadoTexto}>
+                    {solicitud.motivoRechazo ||
+                      "No pudimos validar tu documento. Probá enviarlo de nuevo."}
                   </Text>
                 </View>
               )}
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.enviarButton,
-                (!foto || enviando) && styles.enviarButtonDisabled,
-              ]}
-              activeOpacity={0.85}
-              onPress={enviarSolicitud}
-              disabled={!foto || enviando}
-            >
-              {enviando ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.enviarButtonText}>Enviar solicitud</Text>
-              )}
-            </TouchableOpacity>
-          </>
-        )}
+              <TouchableOpacity
+                style={styles.fotoBox}
+                activeOpacity={0.85}
+                onPress={elegirFoto}
+                disabled={procesandoImagen}
+              >
+                {procesandoImagen ? (
+                  <ActivityIndicator color="#7528F0" />
+                ) : foto ? (
+                  <Image source={{ uri: foto }} style={styles.fotoPreview} />
+                ) : (
+                  <View style={styles.fotoPlaceholder}>
+                    <Camera size={28} color="#7528F0" />
+                    <Text style={styles.fotoPlaceholderText}>
+                      Tocá para sacar o elegir una foto del documento
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.enviarButton,
+                  (!foto || enviando) && styles.enviarButtonDisabled,
+                ]}
+                activeOpacity={0.85}
+                onPress={enviarSolicitud}
+                disabled={!foto || enviando}
+              >
+                {enviando ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.enviarButtonText}>Enviar solicitud</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -271,6 +280,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingTop: 58,
     paddingBottom: 60,
+  },
+  webContainer: {
+    paddingHorizontal: 34,
+    paddingTop: 48,
+    paddingBottom: 48,
+    alignItems: "center",
+  },
+  card: {
+    width: "100%",
+  },
+  webCard: {
+    maxWidth: 680,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#E8E2F8",
+    padding: 28,
+    boxShadow: "0px 18px 42px rgba(65,34,114,0.1)" as any,
   },
   backButton: {
     width: 38,

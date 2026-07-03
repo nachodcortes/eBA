@@ -1,23 +1,18 @@
 import { useEffect, useState } from "react";
-import {
-  Platform,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  useWindowDimensions,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import {
+  CalendarDays,
   Home,
+  IdCard,
   MessageCircle,
-  Users,
-  User,
   PlusCircle,
   ShieldCheck,
-  IdCard,
-  CalendarDays,
+  User,
+  Users,
 } from "lucide-react-native";
+
+import Logo from "./Logo";
 import { obtenerUsuarioActualizado } from "../utils/usuario";
 
 const NAV_ITEMS_USUARIO = [
@@ -38,6 +33,12 @@ const NAV_ITEMS_USUARIO = [
     route: "/connections",
     icon: Users,
     matches: ["/connections", "/user-profile"],
+  },
+  {
+    label: "eBA Organizadores",
+    route: "/ser-organizador",
+    icon: IdCard,
+    matches: ["/ser-organizador"],
   },
   {
     label: "Perfil",
@@ -70,7 +71,7 @@ const NAV_ITEMS_ORGANIZADOR = [
     label: "Mis eventos",
     route: "/mis-eventos",
     icon: CalendarDays,
-    matches: ["/mis-eventos"],
+    matches: ["/mis-eventos", "/crear-evento"],
   },
   {
     label: "Perfil",
@@ -113,12 +114,10 @@ const NAV_ITEMS_MANAGER = [
   },
 ];
 
-export default function BottomNav() {
+export default function DesktopNav() {
   const pathname = usePathname();
-  const { width } = useWindowDimensions();
   const [esManager, setEsManager] = useState(false);
   const [esOrganizador, setEsOrganizador] = useState(false);
-  const isDesktopWeb = Platform.OS === "web" && width >= 900;
 
   useEffect(() => {
     obtenerUsuarioActualizado().then((usuario) => {
@@ -135,88 +134,92 @@ export default function BottomNav() {
     ? NAV_ITEMS_ORGANIZADOR
     : NAV_ITEMS_USUARIO;
 
-  const coincidenciaMasLarga = () => {
-    let mejorRuta = "";
-    let mejorLargo = -1;
+  const rutaActiva = items.reduce(
+    (mejor, item) => {
+      const match = item.matches.find(
+        (route) => pathname === route || pathname.startsWith(`${route}/`)
+      );
 
-    items.forEach((item) => {
-      item.matches.forEach((route: string) => {
-        const coincide = pathname === route || pathname.startsWith(`${route}/`);
-        if (coincide && route.length > mejorLargo) {
-          mejorLargo = route.length;
-          mejorRuta = item.route;
-        }
-      });
-    });
-
-    return mejorRuta;
-  };
-
-  const rutaActiva = coincidenciaMasLarga();
-
-  const isActive = (itemRoute: string) => itemRoute === rutaActiva;
-
-  if (isDesktopWeb) {
-    return null;
-  }
+      if (match && match.length > mejor.length) return item.route;
+      return mejor;
+    },
+    ""
+  );
 
   return (
-    <View style={styles.navbar}>
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = isActive(item.route);
+    <View style={styles.sidebar}>
+      <View style={styles.logoBox}>
+        <Logo size="medium" centered={false} />
+      </View>
 
-        return (
-          <TouchableOpacity
-            key={item.route}
-            style={styles.navItem}
-            activeOpacity={0.85}
-            onPress={() => router.push(item.route as any)}
-          >
-            <Icon
-              size={21}
-              color={active ? "#6D28E8" : "#8F8B9C"}
-              fill={active && item.route !== "/profile" ? "#6D28E8" : "transparent"}
-            />
-            <Text style={[styles.navLabel, active && styles.navLabelActive]}>
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      <View style={styles.items}>
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = item.route === rutaActiva;
+
+          return (
+            <TouchableOpacity
+              key={item.route}
+              style={[styles.item, active && styles.itemActive]}
+              activeOpacity={0.85}
+              onPress={() => router.push(item.route as any)}
+            >
+              <Icon
+                size={22}
+                color={active ? "#6D28E8" : "#5E586E"}
+                fill={active && item.route === "/home" ? "#6D28E8" : "transparent"}
+              />
+              <Text style={[styles.label, active && styles.labelActive]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  navbar: {
-    position: "absolute",
-    bottom: 22,
-    left: 18,
-    right: 18,
-    height: 70,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.96)",
+  sidebar: {
+    position: "fixed" as any,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 252,
+    backgroundColor: "#FFFFFF",
+    borderRightWidth: 1,
+    borderRightColor: "#E8E2F8",
+    paddingHorizontal: 22,
+    paddingTop: 28,
+    paddingBottom: 24,
+    zIndex: 50,
+    boxShadow: "10px 0px 30px rgba(65,34,114,0.06)" as any,
+  },
+  logoBox: {
+    marginBottom: 14,
+  },
+  items: {
+    gap: 6,
+  },
+  item: {
+    minHeight: 50,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    borderWidth: 1,
-    borderColor: "#E8E2F8",
-    boxShadow: "0px 12px 30px rgba(65,34,114,0.14)" as any,
   },
-  navItem: {
-    flex: 1,
-    height: 58,
-    alignItems: "center",
-    justifyContent: "center",
+  itemActive: {
+    backgroundColor: "#F1ECFF",
   },
-  navLabel: {
-    marginTop: 4,
-    fontSize: 10,
+  label: {
+    marginLeft: 12,
+    fontSize: 15,
     fontWeight: "800",
-    color: "#8F8B9C",
+    color: "#5E586E",
   },
-  navLabelActive: {
-    color: "#6D28E8",
+  labelActive: {
+    color: "#332047",
+    fontWeight: "900",
   },
 });

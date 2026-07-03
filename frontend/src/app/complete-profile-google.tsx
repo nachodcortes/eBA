@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 
 export default function CompleteProfileGoogleScreen() {
   const { usuarioId, intereses } = useLocalSearchParams();
@@ -52,7 +53,7 @@ export default function CompleteProfileGoogleScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <AuthLayout compact>
       <View style={styles.content}>
         <Logo size="large" centered={true} showText={true} />
         <Text style={styles.title}>Completá tu <Text style={styles.highlight}>perfil</Text></Text>
@@ -85,13 +86,18 @@ export default function CompleteProfileGoogleScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F7F5FF", justifyContent: "center" },
-  content: { paddingHorizontal: 34, alignItems: "center" },
+  content: {
+    width: "100%",
+    paddingHorizontal: 34,
+    alignItems: "center",
+    alignSelf: "center",
+    maxWidth: 430,
+  },
   title: { fontSize: 28, fontWeight: "800", color: "#332047", marginBottom: 42 },
   highlight: { color: "#8B35E8" },
   input: {

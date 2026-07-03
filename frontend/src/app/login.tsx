@@ -13,6 +13,7 @@ import { EyeOff, Eye } from "lucide-react-native";
 import { API_URL } from "../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session"; 
@@ -203,7 +204,7 @@ const handleLoginGoogle = async (token: string) => {
   };
 
  return (
-    <View style={styles.screen}>
+    <AuthLayout compact>
       <View style={styles.content}>
         <Logo size="large" centered={true} showText={true} />
 
@@ -287,19 +288,17 @@ const handleLoginGoogle = async (token: string) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F5FF",
-    justifyContent: "center",
-  },
   content: {
+    width: "100%",
     paddingHorizontal: 34,
     alignItems: "center",
+    alignSelf: "center",
+    maxWidth: 430,
   },
   logo: {
     width: 130,

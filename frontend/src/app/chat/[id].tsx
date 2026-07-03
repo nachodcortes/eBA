@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Modal,
+  useWindowDimensions,
 } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
@@ -53,6 +54,8 @@ type Mensaje = {
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams();
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === "web" && width >= 900;
 
   const [chat, setChat] = useState<Chat | null>(null);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
@@ -457,10 +460,10 @@ export default function ChatDetailScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.screen}
+      style={[styles.screen, isDesktopWeb && styles.webScreen]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, isDesktopWeb && styles.webHeader]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={22} color="#332047" />
         </TouchableOpacity>
@@ -492,7 +495,10 @@ export default function ChatDetailScreen() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.messagesContainer}
+        contentContainerStyle={[
+          styles.messagesContainer,
+          isDesktopWeb && styles.webMessagesContainer,
+        ]}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollAlFinal(true)}
       >
@@ -526,6 +532,7 @@ export default function ChatDetailScreen() {
                 }
                 style={[
                   styles.messageBubble,
+                  isDesktopWeb && styles.webMessageBubble,
                   esMio && styles.messageMine,
                   mensajeSeleccionadoId === mensaje._id && styles.messageSelected,
                 ]}
@@ -672,7 +679,7 @@ export default function ChatDetailScreen() {
       </ScrollView>
 
       {mensajeRespondiendo && (
-        <View style={styles.replyingBar}>
+        <View style={[styles.replyingBar, isDesktopWeb && styles.webBottomBar]}>
           <View style={styles.replyingIndicator} />
           <View style={styles.replyingTextBox}>
             <Text style={styles.replyingTitle}>
@@ -694,7 +701,7 @@ export default function ChatDetailScreen() {
         </View>
       )}
 
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, isDesktopWeb && styles.webBottomBar]}>
         <View style={styles.inputShell}>
           <TextInput
             style={styles.input}
@@ -781,6 +788,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F4F6FB",
   },
+  webScreen: {
+    width: "100%",
+    maxWidth: 860,
+    height: "100vh" as any,
+    alignSelf: "center",
+    backgroundColor: "#F7F5FF",
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: "#E8E2F8",
+  },
   header: {
     paddingHorizontal: 18,
     paddingTop: 58,
@@ -790,6 +807,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0,0,0,0.05)",
+  },
+  webHeader: {
+    paddingTop: 22,
+    paddingBottom: 16,
+    paddingHorizontal: 24,
+    borderBottomColor: "#E8E2F8",
   },
   backButton: {
     width: 38,
@@ -843,6 +866,11 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 22,
   },
+  webMessagesContainer: {
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 28,
+  },
   messageRow: {
     marginBottom: 12,
   },
@@ -859,6 +887,10 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderWidth: 1,
     borderColor: "#ECE8F4",
+  },
+  webMessageBubble: {
+    maxWidth: "66%",
+    borderRadius: 18,
   },
   messageMine: {
     alignSelf: "flex-end",
@@ -1042,6 +1074,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     borderTopWidth: 1,
     borderTopColor: "#EEEAF7",
+  },
+  webBottomBar: {
+    paddingHorizontal: 24,
+    paddingBottom: 18,
+    borderTopColor: "#E8E2F8",
   },
   inputShell: {
     flex: 1,

@@ -12,6 +12,7 @@ import { MailCheck } from "lucide-react-native";
 
 import { API_URL } from "../config/api";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 
 export default function VerifyEmailScreen() {
   const params = useLocalSearchParams();
@@ -119,7 +120,7 @@ export default function VerifyEmailScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <AuthLayout>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
@@ -205,19 +206,18 @@ export default function VerifyEmailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F5FF",
-  },
   container: {
     paddingHorizontal: 34,
     paddingTop: 52,
     paddingBottom: 70,
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
   },
   iconCircle: {
     width: 86,

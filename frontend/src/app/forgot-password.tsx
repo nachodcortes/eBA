@@ -13,6 +13,7 @@ import { EyeOff, MailCheck, ArrowLeft, Eye } from "lucide-react-native";
  
 import { API_URL } from "../config/api";
 import Logo from "@/components/Logo";
+import AuthLayout from "@/components/AuthLayout";
 import {
   validarContrasenia,
   CONTRASENIA_EJEMPLO,
@@ -134,7 +135,7 @@ const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
   };
  
   return (
-    <View style={styles.screen}>
+    <AuthLayout>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.container}
@@ -269,19 +270,18 @@ const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </AuthLayout>
   );
 }
- 
+
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F5FF",
-  },
   container: {
     paddingHorizontal: 34,
     paddingTop: 52,
     paddingBottom: 70,
+    width: "100%",
+    maxWidth: 460,
+    alignSelf: "center",
   },
   backButton: {
     width: 38,

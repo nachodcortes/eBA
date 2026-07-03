@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
 } from "react-native";
 import Logo from "../components/Logo";
+import AuthLayout from "../components/AuthLayout";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function WelcomeScreen() {
   return (
-    <View style={styles.screen}>
+    <AuthLayout compact>
       <View style={styles.content}>
        <Logo size="large" centered={true} showText={true} />
 
@@ -35,21 +35,17 @@ export default function WelcomeScreen() {
           <Text style={styles.link}>Crear cuenta</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F5FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   content: {
     width: "100%",
     paddingHorizontal: 32,
     alignItems: "center",
+    alignSelf: "center",
+    maxWidth: 430,
   },
   logo: {
     width: 120,
