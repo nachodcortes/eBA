@@ -43,15 +43,16 @@ export default function LoginScreen() {
     (Platform.OS === "ios" && !GOOGLE_IOS_CLIENT_ID_CONFIGURED) ||
     (Platform.OS === "android" && !GOOGLE_ANDROID_CLIENT_ID_CONFIGURED);
   const googleNativoDisponible = !estaEnExpoGoNativo && !faltaClientNativo;
+  const googleRedirectUri =
+    Platform.OS === "web" && typeof window !== "undefined"
+      ? `${window.location.origin}/login`
+      : AuthSession.makeRedirectUri({ native: "eba://auth" });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: GOOGLE_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    redirectUri:
-      Platform.OS === "web"
-        ? undefined
-        : AuthSession.makeRedirectUri({ native: "eba://auth" }),
+    redirectUri: googleRedirectUri,
   });
 
 useEffect(() => {
@@ -104,6 +105,13 @@ const handleLoginGoogle = async (token: string) => {
 };
 
   const iniciarGoogle = async () => {
+    if (!GOOGLE_CLIENT_ID) {
+      alert(
+        "Falta configurar EXPO_PUBLIC_GOOGLE_CLIENT_ID en Vercel. Cargá un OAuth Client ID de tipo Web application y redeployá."
+      );
+      return;
+    }
+
     if (Platform.OS !== "web" && !googleNativoDisponible) {
       alert(
         "Google en Expo Go no está disponible porque Google bloquea redirects exp://. Probalo en web o configurá un Client ID nativo y usá un development build."
