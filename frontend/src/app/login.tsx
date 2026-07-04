@@ -36,6 +36,7 @@ export default function LoginScreen() {
   const [contrasenia, setContrasenia] = useState("");
   const [loading, setLoading] = useState(false);
   const [mostrarContrasenia, setMostrarContrasenia] = useState(false);
+  const [mensaje, setMensaje] = useState("");
   const estaEnExpoGoNativo =
     Platform.OS !== "web" &&
     Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -45,7 +46,7 @@ export default function LoginScreen() {
   const googleNativoDisponible = !estaEnExpoGoNativo && !faltaClientNativo;
   const googleRedirectUri =
     Platform.OS === "web" && typeof window !== "undefined"
-      ? `${window.location.origin}/login`
+      ? window.location.origin
       : AuthSession.makeRedirectUri({ native: "eba://auth" });
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -68,6 +69,7 @@ useEffect(() => {
 
 const handleLoginGoogle = async (token: string) => {
   try {
+    setMensaje("");
     setLoading(true);
     const res = await fetch(`${API_URL}/api/usuarios/auth/google/token`, {
       method: "POST",
@@ -77,13 +79,13 @@ const handleLoginGoogle = async (token: string) => {
     const data = await res.json();
     if (!res.ok) {
       if (res.status === 403 && data.codigo === "sancionado") {
-        alert(
+        setMensaje(
           data.error ||
           "Tu cuenta está sancionada temporalmente. Intentá más tarde."
         );
         return;
       }
-      alert(data.error || "Error al iniciar sesión con Google.");
+      setMensaje(data.error || "Error al iniciar sesión con Google.");
       return;
     }
     await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
@@ -98,7 +100,7 @@ const handleLoginGoogle = async (token: string) => {
       router.replace("/home" as any);
     }
   } catch (error) {
-    alert("No se pudo conectar con el servidor.");
+    setMensaje("No se pudo conectar con el servidor.");
   } finally {
     setLoading(false);
   }
@@ -106,14 +108,14 @@ const handleLoginGoogle = async (token: string) => {
 
   const iniciarGoogle = async () => {
     if (!GOOGLE_CLIENT_ID) {
-      alert(
+      setMensaje(
         "Falta configurar EXPO_PUBLIC_GOOGLE_CLIENT_ID en Vercel. Cargá un OAuth Client ID de tipo Web application y redeployá."
       );
       return;
     }
 
     if (Platform.OS !== "web" && !googleNativoDisponible) {
-      alert(
+      setMensaje(
         "Google en Expo Go no está disponible porque Google bloquea redirects exp://. Probalo en web o configurá un Client ID nativo y usá un development build."
       );
       return;
@@ -123,20 +125,22 @@ const handleLoginGoogle = async (token: string) => {
   };
 
   const handleLogin = async () => {
+    setMensaje("");
+
     if (!email.trim()) {
-      alert("Ingresá tu email.");
+      setMensaje("Ingresá tu email.");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(email.trim())) {
-      alert("Ingresá un email válido.");
+      setMensaje("Ingresá un email válido.");
       return;
     }
 
     if (!contrasenia.trim()) {
-      alert("Ingresá tu contraseña.");
+      setMensaje("Ingresá tu contraseña.");
       return;
     }
 
@@ -167,14 +171,14 @@ const handleLoginGoogle = async (token: string) => {
 
       if (response.status === 403) {
         if (data.codigo === "sancionado") {
-          alert(
+          setMensaje(
             data.error ||
             "Tu cuenta está sancionada temporalmente. Intentá más tarde."
           );
           return;
         }
 
-        alert(
+        setMensaje(
           data.error ||
           "Tenés que verificar tu email antes de iniciar sesión."
         );
@@ -188,11 +192,9 @@ const handleLoginGoogle = async (token: string) => {
       }
 
       if (!response.ok) {
-        alert(data.message || data.error || "Email o contraseña incorrectos.");
+        setMensaje(data.message || data.error || "Email o contraseña incorrectos.");
         return;
       }
-
-      alert("Inicio de sesión exitoso.");
 
       await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
 
@@ -203,7 +205,7 @@ const handleLoginGoogle = async (token: string) => {
       router.replace("/home" as any);
     } catch (error) {
       console.log("Error al conectar con backend:", error);
-      alert(
+      setMensaje(
         "No se pudo conectar con el servidor. Revisá que el backend esté prendido."
       );
     } finally {
@@ -219,6 +221,12 @@ const handleLoginGoogle = async (token: string) => {
         <Text style={styles.title}>
           ¡Hola de <Text style={styles.highlight}>vuelta!</Text>
         </Text>
+
+        {!!mensaje && (
+          <View style={styles.messageBox}>
+            <Text style={styles.messageText}>{mensaje}</Text>
+          </View>
+        )}
 
         <TextInput
           placeholder="Correo electrónico"
@@ -317,10 +325,26 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     color: "#332047",
-    marginBottom: 42,
+    marginBottom: 24,
   },
   highlight: {
     color: "#8B35E8",
+  },
+  messageBox: {
+    width: "100%",
+    borderRadius: 12,
+    backgroundColor: "#FFF3F5",
+    borderWidth: 1,
+    borderColor: "#FFD3DB",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  messageText: {
+    color: "#B3261E",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
   },
   input: {
     width: "100%",
