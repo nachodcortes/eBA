@@ -41,6 +41,7 @@ export default function HomeScreen() {
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [eventosRecomendados, setEventosRecomendados] = useState<Evento[]>([]);
   const [categorias, setCategorias] = useState<Interes[]>([]);
+  const [interesesUsuario, setInteresesUsuario] = useState<string[]>([]);
   const [notificacionesNoLeidas, setNotificacionesNoLeidas] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +62,7 @@ export default function HomeScreen() {
 
       const usuario = JSON.parse(usuarioGuardado);
       const usuarioId = usuario.id || usuario._id;
+      setInteresesUsuario(Array.isArray(usuario.intereses) ? usuario.intereses : []);
       const eventosCacheados = getCached<Evento[]>("eventos:todos");
       const categoriasCacheadas = getCached<Interes[]>("intereses:todos");
       const recomendadosCacheados = usuarioId
@@ -231,16 +233,47 @@ export default function HomeScreen() {
   const irAExploreRecomendados = () => {
     router.push("/explore?filtro=recomendados" as any);
   };
+
+  const normalizarTexto = (valor?: string) =>
+    String(valor || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const interesCoincideConEvento = (evento: Evento) => {
+    if (interesesUsuario.length === 0 || !evento.categoria) return false;
+
+    const categoriaEvento = normalizarTexto(evento.categoria);
+    return interesesUsuario.some(
+      (interes) => normalizarTexto(interes) === categoriaEvento
+    );
+  };
+
+  const esEventoPromocionado = (evento: Evento) => evento.esPromocionado === true;
+
   const eventosVigentes = eventos.filter((evento) => !eventoYaPaso(evento.fecha));
-  const eventosDestacados = eventosVigentes.filter((evento) => evento.esPromocionado);
+  const eventosDestacados = eventosVigentes
+    .filter(interesCoincideConEvento)
+    .sort((a, b) => {
+      if (esEventoPromocionado(a) && !esEventoPromocionado(b)) return -1;
+      if (!esEventoPromocionado(a) && esEventoPromocionado(b)) return 1;
+
+      return new Date(a.fecha || 0).getTime() - new Date(b.fecha || 0).getTime();
+    });
 
   const destacadosParaMostrar = eventosDestacados.slice(0, 2);
   const tieneDestacados = destacadosParaMostrar.length > 0;
+  const destacadosIds = new Set(destacadosParaMostrar.map((evento) => evento._id));
 
   const recomendadosParaMostrar =
     eventosRecomendados.length > 0
-      ? eventosRecomendados.filter((evento) => !eventoYaPaso(evento.fecha)).slice(0, 4)
-      : eventosVigentes.filter((evento) => !evento.esPromocionado).slice(0, 4);
+      ? eventosRecomendados
+          .filter((evento) => !eventoYaPaso(evento.fecha) && !destacadosIds.has(evento._id))
+          .slice(0, 4)
+      : eventosVigentes
+          .filter((evento) => !destacadosIds.has(evento._id))
+          .slice(0, 4);
 
   if (loading) {
     return <LoadingScreen text="Cargando eventos..." />;
@@ -302,7 +335,7 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Destacados"
                   actionText="Ver todos"
-                  onPress={irAExplorePromocionados}
+                  onPress={irAExploreRecomendados}
                 />
 
                 <Pressable
