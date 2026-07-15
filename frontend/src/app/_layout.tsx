@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { AppState, Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import { Stack, router, usePathname } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Analytics } from "@vercel/analytics/react";
 
 import DesktopNav from "../components/DesktopNav";
 import InAppNotificationToast from "../components/InAppNotificationToast";
@@ -112,6 +113,7 @@ export default function RootLayout() {
         </View>
       )}
       <InAppNotificationToast />
+      {Platform.OS === "web" && <Analytics />}
     </View>
   );
 }

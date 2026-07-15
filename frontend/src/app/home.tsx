@@ -234,10 +234,8 @@ export default function HomeScreen() {
   const eventosVigentes = eventos.filter((evento) => !eventoYaPaso(evento.fecha));
   const eventosDestacados = eventosVigentes.filter((evento) => evento.esPromocionado);
 
-  const destacadosParaMostrar =
-    eventosDestacados.length > 0
-      ? eventosDestacados.slice(0, 2)
-      : eventosVigentes.slice(0, 2);
+  const destacadosParaMostrar = eventosDestacados.slice(0, 2);
+  const tieneDestacados = destacadosParaMostrar.length > 0;
 
   const recomendadosParaMostrar =
     eventosRecomendados.length > 0
@@ -292,12 +290,6 @@ export default function HomeScreen() {
           />
         </ScrollView>
 
-        <SectionHeader
-          title="Destacados"
-          actionText="Ver todos"
-          onPress={irAExplorePromocionados}
-        />
-
         {eventosVigentes.length === 0 ? (
           <EmptyState
             title="No hay eventos cargados"
@@ -305,48 +297,56 @@ export default function HomeScreen() {
           />
         ) : (
           <>
-            {destacadosParaMostrar[0] && (
-              <Pressable
-                style={styles.heroCard}
-                onPress={() => irADetalle(destacadosParaMostrar[0]._id)}
-              >
-                <Image
-                  source={{ uri: obtenerImagen(destacadosParaMostrar[0].imagen) }}
-                  style={styles.heroImage}
+            {tieneDestacados && (
+              <>
+                <SectionHeader
+                  title="Destacados"
+                  actionText="Ver todos"
+                  onPress={irAExplorePromocionados}
                 />
-                <View style={styles.heroOverlay} />
-                <View style={styles.heroBadge}>
-                  <Text style={styles.heroBadgeText}>DESTACADO</Text>
-                </View>
-                <View style={styles.heroContent}>
-                  <Text style={styles.heroTitle} numberOfLines={2}>
-                    {destacadosParaMostrar[0].nombre}
-                  </Text>
-                  <View style={styles.heroMetaRow}>
-                    <CalendarDays size={14} color="#FFFFFF" />
-                    <Text style={styles.heroMetaText}>
-                      {formatearFecha(destacadosParaMostrar[0].fecha)}
-                    </Text>
-                  </View>
-                  <View style={styles.heroMetaRow}>
-                    <MapPin size={14} color="#FFFFFF" />
-                    <Text style={styles.heroMetaText} numberOfLines={1}>
-                      {obtenerUbicacion(destacadosParaMostrar[0].ubicacion)}
-                    </Text>
-                  </View>
-                </View>
-              </Pressable>
-            )}
 
-            <View style={styles.featuredGrid}>
-              {destacadosParaMostrar.slice(1).map((evento) => (
-                <EventListCard
-                  key={evento._id}
-                  evento={evento}
-                  onPress={() => irADetalle(evento._id)}
-                />
-              ))}
-            </View>
+                <Pressable
+                  style={styles.heroCard}
+                  onPress={() => irADetalle(destacadosParaMostrar[0]._id)}
+                >
+                  <Image
+                    source={{ uri: obtenerImagen(destacadosParaMostrar[0].imagen) }}
+                    style={styles.heroImage}
+                  />
+                  <View style={styles.heroOverlay} />
+                  <View style={styles.heroBadge}>
+                    <Text style={styles.heroBadgeText}>DESTACADO</Text>
+                  </View>
+                  <View style={styles.heroContent}>
+                    <Text style={styles.heroTitle} numberOfLines={2}>
+                      {destacadosParaMostrar[0].nombre}
+                    </Text>
+                    <View style={styles.heroMetaRow}>
+                      <CalendarDays size={14} color="#FFFFFF" />
+                      <Text style={styles.heroMetaText}>
+                        {formatearFecha(destacadosParaMostrar[0].fecha)}
+                      </Text>
+                    </View>
+                    <View style={styles.heroMetaRow}>
+                      <MapPin size={14} color="#FFFFFF" />
+                      <Text style={styles.heroMetaText} numberOfLines={1}>
+                        {obtenerUbicacion(destacadosParaMostrar[0].ubicacion)}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+
+                <View style={styles.featuredGrid}>
+                  {destacadosParaMostrar.slice(1).map((evento) => (
+                    <EventListCard
+                      key={evento._id}
+                      evento={evento}
+                      onPress={() => irADetalle(evento._id)}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
 
             <Pressable style={styles.flowCard} onPress={irAExploreTodos}>
               <View style={styles.flowIcon}>

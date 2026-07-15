@@ -408,6 +408,58 @@ router.post("/", async (req, res) => {
   }
 });
 
+// POST /api/eventos/bulk
+router.post("/bulk", async (req, res) => {
+  try {
+    const eventos = Array.isArray(req.body?.eventos) ? req.body.eventos : req.body;
+
+    if (!Array.isArray(eventos) || eventos.length === 0) {
+      return res.status(400).json({
+        error: "Mandá un array de eventos o { eventos: [...] }",
+      });
+    }
+
+    const resultado = {
+      creados: [],
+      errores: [],
+    };
+
+    for (const item of eventos) {
+      try {
+        const datosEvento = {
+          ...item,
+          organizador: item.organizador || "eBA",
+          estado: item.estado || "aprobado",
+          activo: item.activo !== false,
+        };
+
+        delete datosEvento.organizadorId;
+        delete datosEvento.verificadoPor;
+        delete datosEvento.verificadoEn;
+        delete datosEvento.motivoRechazo;
+
+        const nuevoEvento = await Evento.create(datosEvento);
+        resultado.creados.push(nuevoEvento);
+      } catch (error) {
+        resultado.errores.push({
+          item,
+          error: error.message,
+        });
+      }
+    }
+
+    return res.status(201).json({
+      message: "Carga masiva de eventos finalizada",
+      ...resultado,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "Error en carga masiva de eventos",
+      detalle: error.message,
+    });
+  }
+});
+
 // Obtener eventos por categoría
 router.get("/categoria/:categoria", async (req, res) => {
   try {
